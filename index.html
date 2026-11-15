@@ -1148,8 +1148,15 @@ const NATURES = {
   "Taxe foncière":{g:"charge",l:"244",c:"635120"},
   "CFE":{g:"charge",l:"244",c:"635110"},
   "Intérêts emprunt":{g:"charge",l:"294",c:"661160",piece:false},
-  "Remboursement emprunt":{g:"bilan",l:"",c:"164000",piece:false}
+  "Remboursement emprunt":{g:"bilan",l:"",c:"164000",piece:false},
+  /* Mouvements de trésorerie sans effet sur le résultat : le bien acheté ou le prêt figurent déjà au bilan (pages Immobilisations et Emprunt),
+     la contrepartie va au compte de l'exploitant, qui avait apporté le bien (à-nouveaux) ou reçu le prêt (déblocage) */
+  "Achat d'immobilisation":{g:"bilan",l:"",c:"108000"},
+  "Versement d'un prêt":{g:"bilan",l:"",c:"108000",piece:false,entree:true}
 };
+/* Encaissement (recette, ou versement d'un prêt) ou décaissement */
+const entreeNature = n => NATURES[n]?.g === "recette" || !!NATURES[n]?.entree;
+const estEntree = e => NATURES[e.nature] ? entreeNature(e.nature) : e.sens === "recette";
 /* Plan comptable général : libellés des comptes utilisés (natures, immobilisations, export FEC) */
 const COMPTES = {
   "108000":"Compte de l'exploitant", "164000":"Emprunts auprès des établissements de crédit",
@@ -1385,6 +1392,7 @@ function totauxEcritures(y){
     if(nat.inconnue) t.inconnues++;
     t.parNature[e.nature] = (t.parNature[e.nature]||0) + e.montant;
     if(nat.g === "recette") t.recettes += e.montant;
+    else if(nat.entree) t.encBilan = (t.encBilan||0) + e.montant;
     else if(nat.g === "bilan") t.remb += e.montant;
     else if(nat.l === "244") t.c244 += e.montant;
     else if(nat.l === "294") t.c294 += e.montant;
@@ -2033,7 +2041,7 @@ function vueAccueil(){
   const charges = c.c242 + c.c244 + c.interets;
   // Mois par mois : encaissé / payé
   const rec = Array(12).fill(0), dep = Array(12).fill(0);
-  es.forEach(e => { const m = monthOf(e.date)-1, g = NATURES[e.nature]?.g || (e.sens==="recette"?"recette":"charge"); if(m<0||m>11) return; if(g==="recette") rec[m] += e.montant; else dep[m] += e.montant; });
+  es.forEach(e => { const m = monthOf(e.date)-1, g = NATURES[e.nature]?.g || (e.sens==="recette"?"recette":"charge"); if(m<0||m>11) return; if(estEntree(e)) rec[m] += e.montant; else dep[m] += e.montant; });
   // Indicateurs de suivi
   const debut = y === yearOf(debutLMNP()) ? monthOf(debutLMNP()) : 1;
   const moisAttendus = [...Array(13-debut).keys()].map(i=>i+debut).filter(m => y < new Date().getFullYear() || m <= new Date().getMonth()+1);
@@ -2173,7 +2181,7 @@ function vueEcritures(){
   const natOpts = sel => Object.keys(NATURES).map(n=>optNature(n, sel)).join("");
   return tete + barre("journal") + `
   ${lock ? `<div class="alert warn" style="align-items:center">Année clôturée : écritures verrouillées. Pour les modifier, rouvrez l'année dans les paramètres du dossier.</div>` : ""}
-  <div class="tuiles ejx-tu">${tuile("Encaissé", eur0(t.recettes), {col:"var(--pos)"})}${tuile("Payé", eur0(t.c242+t.c244+t.c294+t.remb))}${tuile("Écritures", ex.ecritures.length)}${tuile("Avec justificatif", ex.ecritures.filter(e => e.piece).length, {page:"pieces"})}</div>
+  <div class="tuiles ejx-tu">${tuile("Encaissé", eur0(t.recettes + (t.encBilan||0)), {col:"var(--pos)"})}${tuile("Payé", eur0(t.c242+t.c244+t.c294+t.remb))}${tuile("Écritures", ex.ecritures.length)}${tuile("Avec justificatif", ex.ecritures.filter(e => e.piece).length, {page:"pieces"})}</div>
   ${ouvert ? `<div class="card composer noprint"><div class="form">
     <label>Date<input type="date" id="eDate" value="${ed?ed.date:(list.length?list[list.length-1].date:y+"-01-01")}"></label>
     <label>Tiers<input id="eTiers" list="tiersList" value="${esc(ed?ed.tiers:"")}" placeholder="Syndic, banque…"></label>
@@ -2195,7 +2203,7 @@ const IC_EJ = {
 function basculerMoisEcr(m){ (S.ecrFerme ??= {})[m] = !S.ecrFerme[m]; renderAll(); }
 function tableEcritures(list, lock, filtre){
   const num = x => eur(x).replace(/\s€$/, "");
-  const recu = l => l.filter(e => grpNature(e) === "recette").reduce((s,e)=>s+e.montant,0), paye = l => l.filter(e => grpNature(e) !== "recette").reduce((s,e)=>s+e.montant,0);
+  const recu = l => l.filter(estEntree).reduce((s,e)=>s+e.montant,0), paye = l => l.filter(e => !estEntree(e)).reduce((s,e)=>s+e.montant,0);
   const som = l => { const r = recu(l), p = paye(l);
     return `<span class="ejx-som">${r ? `<span class="in">Reçu <b>+${num(r)}</b></span>` : ""}${p ? `<span>Payé <b>−${num(p)}</b></span>` : ""}${r && p ? `<span class="net">Solde <b>${r-p>=0?"+":"−"}${num(Math.abs(r-p))}</b></span>` : ""}</span>`; };
   const pj = e => e.piece ? `<button class="ejx-pj ok" title="${esc(e.piece)}" onclick="ouvrirPiece('${e.id}')">${I_CLIP}Voir</button>`
@@ -2332,8 +2340,8 @@ function passeCompteBalance(c, J){
 }
 function passeLignes(e, v){
   if(!v) return true;
-  if(v === "recette") return grpNature(e) === "recette";
-  if(v === "depense") return grpNature(e) !== "recette";
+  if(v === "recette") return estEntree(e);
+  if(v === "depense") return !estEntree(e);
   if(v === "nonpointees") return !e.banque;
   if(v === "sanspiece") return !e.piece;
   return true;
@@ -2584,7 +2592,7 @@ function saveEcriture(){
   const e = {date:$("#eDate").value, tiers:$("#eTiers").value.trim(), nature:$("#eNat").value, montant:r2(parseMontant($("#eMont").value)), commentaire:$("#eCom").value.trim()};
   if(!e.date || isNaN(e.montant) || e.montant <= 0) return avertir("Date et montant positif obligatoires.");
   if(yearOf(e.date) !== S.year) return avertir("La date doit être dans l'exercice " + S.year + ".");
-  e.sens = NATURES[e.nature].g === "recette" ? "recette" : "depense";
+  e.sens = entreeNature(e.nature) ? "recette" : "depense";
   if(!e.commentaire) delete e.commentaire;
   const pr = NAT_PRET[e.nature] && $("#ePret")?.value; if(pr) e.pret = pr;
   if(S.editId){ const x = ex.ecritures.find(x=>x.id===S.editId); if(!pr) delete x.pret; }
@@ -3523,7 +3531,7 @@ function ecrituresComptables(y){
   // Mouvements de banque saisis
   [...(exercice(y).ecritures||[])].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => {
     const k = compteNature(e.nature), m = r2(e.montant), lib = [e.tiers, e.nature].filter(Boolean).join(" - ");
-    const recette = (NATURES[e.nature]?.g || (e.sens==="recette"?"recette":"charge")) === "recette";
+    const recette = estEntree(e);
     add("BQ", e.date, lib, recette ? [{c:"512000", d:m}, {c:k, cr:m}] : [{c:k, d:m}, {c:"512000", cr:m}], e.piece ? e.piece.split("/").pop() : e.id, e);
   });
   // Dotations aux amortissements, par catégorie
@@ -3625,7 +3633,7 @@ function csvEcritures(y, vue){
   }
   const lg = S.lignesEcr || "", list = [...(exercice(y)?.ecritures || [])].filter(e => passeLignes(e, lg) && passeFiltre(e, J, "journal")).sort((a, b) => a.date.localeCompare(b.date));
   telechargerCSV(`ecritures-${y}.csv`, [["Date", "Tiers", "Nature", "Compte", "Montant", "Recette ou dépense", "Pointée sur le relevé", "Justificatif", "Commentaire"],
-    ...list.map(e => [fmtDate(e.date), e.tiers || "", e.nature, NATURES[e.nature]?.c || "", e.montant, grpNature(e) === "recette" ? "Recette" : "Dépense", e.banque ? "oui" : "non", e.piece ? "oui" : "non", e.commentaire || ""])]);
+    ...list.map(e => [fmtDate(e.date), e.tiers || "", e.nature, NATURES[e.nature]?.c || "", e.montant, estEntree(e) ? "Recette" : "Dépense", e.banque ? "oui" : "non", e.piece ? "oui" : "non", e.commentaire || ""])]);
 }
 function csvImmos(y){
   const L = S.data.immobilisations.filter(i => anneeEntreeBilan(i) <= y).sort((a, b) => a.miseEnService.localeCompare(b.miseEnService));
@@ -3811,6 +3819,14 @@ function controles(y){
   chk("doublons", "pieces", !dbl.length, "Aucun doublon apparent.", "warn", `${dbl.length} écriture${pl(dbl.length)} en double apparent (même date, nature et montant) : vérifiez qu'il ne s'agit pas d'une saisie répétée.`, "ecritures");
   const gros = es.filter(e => e.nature === "Petit équipement (< 500 € HT)" && e.montant > 600);
   chk("petit-equipement", "immos", !gros.length, "Aucun petit équipement au-dessus du seuil.", "warn", `${gros.length} « petit équipement » de plus de 600 € TTC : au-delà de 500 € HT par élément, il faut l'amortir (page Immobilisations).`, "immos");
+  // Achats d'immobilisations payés en banque : chaque euro payé doit correspondre à un bien ajouté sur la page Immobilisations
+  const achats = r2(es.filter(e => e.nature === "Achat d'immobilisation").reduce((s,e) => s + e.montant, 0)), acquis = r2(S.data.immobilisations.filter(i => yearOf(i.miseEnService) === y).reduce((s,i) => s + i.valeurOrigine, 0));
+  if(achats) chk("achats-immos", "immos", achats <= acquis + 0.005, `Achats d'immobilisations payés (${eur(achats)}) couverts par les biens mis en service en ${y} (${eur(acquis)}).`, "warn",
+    `${eur(achats)} payés en « Achat d'immobilisation », mais ${acquis ? `seulement ${eur(acquis)} de biens mis en service` : "aucun bien mis en service"} en ${y} : ajoutez le bien sur la page Immobilisations (sinon il n'est ni au bilan ni amorti).`, "immos");
+  const verse = r2(es.filter(e => e.nature === "Versement d'un prêt").reduce((s,e) => s + e.montant, 0)), debloque = capitalDebloque(y);
+  if(verse) chk("versement-pret", "emprunt", !verse || Math.abs(verse - debloque) < 0.005, `Versement du prêt sur le compte (${eur(verse)}) conforme au capital débloqué.`, "warn",
+    debloque ? `${eur(verse)} reçus en « Versement d'un prêt », pour ${eur(debloque)} de capital débloqué en ${y} selon les contrats : vérifiez le montant ou la date de déblocage (page Emprunt). Une partie peut avoir été versée directement au notaire ou à l'entreprise.`
+      : `${eur(verse)} reçus en « Versement d'un prêt », mais aucun prêt n'est débloqué en ${y} : ajoutez le prêt sur la page Emprunt, avec sa date de déblocage.`, "emprunt");
   if(S.data.emprunts.length){
     chk("interets-saisis", "emprunt", c.interetsSaisis, "Intérêts d'emprunt saisis d'après la banque.", "warn", `Aucun intérêt d'emprunt comptabilisé : seuls les prélèvements de la banque comptent (${eur(c.interetsEch)} attendus selon l'échéancier). L'échéancier de la page Emprunt montre les mois à rapprocher.`, "emprunt");
     chk("echeancier-banque", "emprunt", S.data.emprunts.every(l => lignesBanque(l)), "Échéancier de la banque déposé : il sert à contrôler le restant dû.", "warn", "Échéancier de la banque non déposé : le restant dû comptable est contrôlé avec l'échéancier calculé d'après le contrat. Déposez-le sur la page Emprunt.", "emprunt");
@@ -3910,7 +3926,7 @@ function rapprochements(y){
     if(acq) R("acquisitions", "immos", "Acquisitions de l'année", acq, null, c.immos.filter(x => x.entree === y).map(x => esc(x.i.libelle)).join(", "), null, "immos");
   }
   // Banque : relevé saisi
-  const mvt = r2((ex.ecritures||[]).reduce((s,e) => s + ((NATURES[e.nature]?.g || (e.sens === "recette" ? "recette" : "charge")) === "recette" ? e.montant : -e.montant), 0));
+  const mvt = r2((ex.ecritures||[]).reduce((s,e) => s + (estEntree(e) ? e.montant : -e.montant), 0));
   const rl = ex.releve || {}, hors = r2((S.data.banque?.ignorees || []).filter(o => yearOf(o.date) === y).reduce((s,o) => s + o.montant, 0)), aRel = rl.debut != null && rl.fin != null;
   R("releve", "tresorerie", "Variation du compte bancaire liée à la location", mvt, aRel ? rl.fin - rl.debut - hors : null,
     aRel ? `relevé : ${eur(rl.fin)} au 31/12 − ${eur(rl.debut)} au 1/1${hors ? `, en excluant ${eur(Math.abs(hors))} ${hors < 0 ? "de dépenses" : "d'encaissements"} hors location` : ""}` : "soldes du relevé à saisir ci-dessous", "512000", "banque", "releve");
@@ -4342,7 +4358,7 @@ const MOTS = {"Charges refacturées":"Charges payées par le locataire", "Autre 
   "Assurance":"Assurance du logement", "Électricité / gaz":"Électricité, gaz", "Entretien et réparations":"Entretien, réparation",
   "Petit équipement (< 500 € HT)":"Petit équipement", "Frais de gestion / agence":"Frais d'agence", "Honoraires":"Honoraires (comptable…)",
   "Autre charge":"Autre dépense", "CFE":"CFE (impôt local)", "Intérêts emprunt":"Intérêts du prêt", "Remboursement emprunt":"Capital remboursé",
-  "Assurance emprunt":"Assurance du prêt"};
+  "Assurance emprunt":"Assurance du prêt", "Achat d'immobilisation":"Achat amorti (travaux, mobilier)", "Versement d'un prêt":"Versement du prêt par la banque"};
 const mot = n => MOTS[n] || n || "Autre";
 const ICM = {maison:'M4 11l8-6 8 6v9H4z', banque:'M3 10l9-5 9 5M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18', immeuble:'M5 21V4h10v17M15 9h4v12M8 8h3M8 12h3M8 16h3',
   doc:'M6 3h9l4 4v14H6zM9 12h6M9 16h6', ticket:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', photo:'M4 8h3l2-3h6l2 3h3v11H4zM15.5 13a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
@@ -4362,7 +4378,7 @@ function opsM(){
     const pret = {};
     for(const e of ex.ecritures || []){
       if(NATURES_PRET.includes(e.nature)){ (pret[e.date] ??= []).push(e); continue; }
-      const entree = e.sens ? e.sens === "recette" : NATURES[e.nature]?.g === "recette";
+      const entree = estEntree(e);
       out.push({id:e.id, date:e.date, e, entree, montant:e.montant, icone:icoM(e.nature, entree),
         titre:e.nature === "Loyer" ? (e.tiers ? `Loyer de ${e.tiers}` : "Loyer") : (e.tiers || mot(e.nature)), fourn:e.tiers || mot(e.nature)});
     }
@@ -5116,7 +5132,7 @@ function chercherDoublon(o){
   const pris = new Set(S.data.banque.aTrier.filter(x => x !== o && x.doublon).map(x => x.doublon));
   const t = Date.parse(o.date), credit = o.montant > 0;
   const e = ex.ecritures.find(e => !e.banque && !pris.has(e.id) && Math.abs(e.montant - Math.abs(o.montant)) < 0.005
-    && ((NATURES[e.nature]?.g === "recette") === credit) && Math.abs(Date.parse(e.date) - t) <= 6*864e5);
+    && (estEntree(e) === credit) && Math.abs(Date.parse(e.date) - t) <= 6*864e5);
   if(e) o.doublon = e.id; else delete o.doublon;
 }
 function importerCSV(){ $("#csvInput").click(); }
@@ -5197,7 +5213,7 @@ function validerTri(){
     if(!exercice(y) || isHistorique(y) || verrouille(y)){ bloques.add(y); continue; }
     const ex = exercice(y); ex.ecritures ??= [];
     ex.ecritures.push({id:uid(), date:o.date, tiers:o.tiers||"", nature:o.nature, montant:r2(Math.abs(o.montant)),
-      sens: NATURES[o.nature].g === "recette" ? "recette" : "depense", banque:o.cle, libelleBanque:o.libelle});
+      sens: entreeNature(o.nature) ? "recette" : "depense", banque:o.cle, libelleBanque:o.libelle});
     n++; faites.add(o);
   }
   B.aTrier = B.aTrier.filter(o => !faites.has(o));
@@ -5216,7 +5232,7 @@ function remettreATrier(i){
 }
 function optionsNature(o){
   const credit = o.montant > 0;
-  const nats = Object.keys(NATURES).filter(n => (NATURES[n].g === "recette") === credit);
+  const nats = Object.keys(NATURES).filter(n => entreeNature(n) === credit);
   return `<option value="">À classer…</option>${nats.map(n=>optNature(n, o.nature)).join("")}<option value="${IGNORER}" ${o.nature===IGNORER?"selected":""}>Ignorer (hors location)</option>`;
 }
 function vueImport(){
@@ -5253,7 +5269,7 @@ function postesFrequents(credit){
   Object.values(S.data.exercices).forEach(ex => (ex.ecritures||[]).forEach(e => freq[e.nature] = (freq[e.nature]||0) + 1));
   S.data.banque.regles.forEach(r => freq[r.nature] = (freq[r.nature]||0) + 2);
   const base = credit ? ["Loyer","Charges refacturées","Autre recette"] : ["Copropriété","Taxe foncière","Intérêts emprunt","Remboursement emprunt","Assurance","Entretien et réparations"];
-  const nats = Object.keys(NATURES).filter(n => (NATURES[n].g === "recette") === credit);
+  const nats = Object.keys(NATURES).filter(n => entreeNature(n) === credit);
   return [...new Set([...nats.filter(n=>freq[n]).sort((a,b)=>freq[b]-freq[a]), ...base])].slice(0, credit ? 3 : 7);
 }
 function vueBanque(){
@@ -5262,7 +5278,7 @@ function vueBanque(){
   const classes = list.filter(o => o.nature).length;
   const pc = {true:postesFrequents(true), false:postesFrequents(false)};
   const ligneOp = o => {
-    const credit = o.montant > 0, e = o.doublon && findEcr(o.doublon), autres = Object.keys(NATURES).filter(n => (NATURES[n].g === "recette") === credit && !pc[credit].includes(n));
+    const credit = o.montant > 0, e = o.doublon && findEcr(o.doublon), autres = Object.keys(NATURES).filter(n => entreeNature(n) === credit && !pc[credit].includes(n));
     return `<div class="op2 ${o.nature?"classe":""}">
       <div class="op2h"><span class="d">${fmtDate(o.date).slice(0,5)}</span><span class="t">${esc(o.libelle)}</span><b class="${credit?"recette":""}">${credit?"+":"−"}${eur(Math.abs(o.montant))}</b></div>
       ${e?`<div class="alert warn" style="align-items:center;flex-wrap:wrap;margin:8px 0 0">Déjà saisie le ${fmtDate(e.date)} (${esc(e.tiers||e.nature)}) ?
