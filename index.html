@@ -602,7 +602,10 @@ table.blx td.cptl .blx-l{display:none}
 .glx-bar .lien button:hover{background:var(--accent-soft)}
 .card.glxw{padding:0;overflow:hidden}
 .card.glxw .tablewrap{margin:0}
-table.glx{table-layout:fixed;font-size:13.5px;font-variant-numeric:tabular-nums}
+table.glx{table-layout:fixed;font-size:12.5px;font-variant-numeric:tabular-nums}
+table.glx .glx-tag{font:inherit;font-size:10.5px;font-weight:600;line-height:1;padding:3px 7px;margin-left:6px;border-radius:999px;border:0;cursor:pointer;vertical-align:1px;background:var(--accent-soft);color:var(--accent)}
+table.glx .lbx{display:flex;align-items:center;min-width:0} table.glx .lbt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} table.glx .glx-tag{flex:none}
+table.glx .glx-tag:hover{background:var(--accent);color:var(--accent-ink)}
 table.glx th.d{width:110px} table.glx th.j{width:64px} table.glx th.cp{width:120px} table.glx th.dc{width:118px} table.glx th.so{width:140px}
 table.glx thead th{background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line)}
 table.glx th.n,table.glx td.n{text-align:right;white-space:nowrap}
@@ -2678,11 +2681,18 @@ const IC_GL = {
   chevron:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>'};
 function basculerCompteGL(c){ (S.glFerme ??= {})[c] = !S.glFerme[c]; renderAll(); }
 function toutReplierGL(ferme){ S.glFerme = {}; if(ferme) balance(S.year).forEach(r => S.glFerme[r.c] = true); renderAll(); }
+/* Pastille « immo » ou « emprunt » d'une ligne rattachée, qui mène à la fiche du bien ou au prêt */
+function pastilleGL(k){
+  if(k?.immo){ const i = S.data.immobilisations.find(x => x.id === k.immo); if(i) return `<button class="glx-tag noprint" title="${esc(i.libelle)} : voir l'immobilisation" onclick="event.stopPropagation();allerA('immos');ouvrirImmo(${jsq(i.id)})">immo</button>`; }
+  if(k?.pret){ const n = S.data.emprunts.findIndex(x => x.id === k.pret); if(n >= 0) return `<button class="glx-tag noprint" title="${esc(nomPret(S.data.emprunts[n], n))} : voir l'emprunt" onclick="event.stopPropagation();allerPret(${jsq(k.pret)})">emprunt</button>`; }
+  return "";
+}
+function allerPret(id){ allerA('emprunt'); requestAnimationFrame(() => document.getElementById("pret-" + id)?.scrollIntoView({block:"start", behavior:"smooth"})); }
 function vueGrandLivre(y){
   const parC = {}, J = S.fEcr || [], lignes = S.lignesGL || "", filtre = J.length || lignes;
   ecrituresComptables(y).forEach(e => e.lignes.forEach(l => {
     const autres = [...new Set(e.lignes.filter(o => o.c !== l.c).map(o => o.c))];
-    const x = {c:l.c, date:e.date, j:e.journal, lib:e.lib, d:l.d||0, cr:l.cr||0, src:e.src, cp: autres.length === 1 ? autres[0] : "Divers"};
+    const x = {c:l.c, date:e.date, j:e.journal, lib:e.lib, d:l.d||0, cr:l.cr||0, src:e.src, lien:e.lien, cp: autres.length === 1 ? autres[0] : "Divers"};
     if(passeLignesGL(x, lignes) && passeFiltre(x, J, "gl")) (parC[l.c] ??= []).push(x); }));
   const comptes = Object.keys(parC).sort(), n = comptes.reduce((s,c)=>s+parC[c].length,0);
   S.nbFiltre = n;
@@ -2700,7 +2710,7 @@ function vueGrandLivre(y){
     const rows = ls.map(l => { s += l.d - l.cr;
       const mt = v => lienGL({t:"montant", op:"=", v}, num(v)), mv = lienGL({t:"montant", op:"=", v:l.d || l.cr}, `${num(l.d || l.cr)}<span class="sfx">${l.d ? "D" : "C"}</span>`);
       return `<tr class="${l.j==="AN"?"glx-an":""}"><td class="d"><span class="dl">${fmtDate(l.date)}</span><span class="dcrt">${fmtDate(l.date).slice(0,5)}</span></td><td class="j"><span>${l.j}</span></td>
-        <td class="cp">${l.cp === "Divers" ? `<span title="Plusieurs comptes">Divers</span>` : lienGL({t:"compte", v:l.cp}, `<span>${l.cp}</span>`, "", `${l.cp} · ${COMPTES[l.cp]||""}`)}</td><td class="lb2">${l.j==="AN" ? "Report à nouveau au 1er janvier" : esc(l.lib)}</td>
+        <td class="cp">${l.cp === "Divers" ? `<span title="Plusieurs comptes">Divers</span>` : lienGL({t:"compte", v:l.cp}, `<span>${l.cp}</span>`, "", `${l.cp} · ${COMPTES[l.cp]||""}`)}</td><td class="lb2">${l.j==="AN" ? "Report à nouveau au 1er janvier" : l.lien ? `<div class="lbx"><span class="lbt" title="${esc(l.lib)}">${esc(l.lib)}</span>${pastilleGL(l.lien)}</div>` : esc(l.lib)}</td>
         <td class="n dc">${l.d?mt(l.d):""}</td><td class="n dc">${l.cr?mt(l.cr):""}</td><td class="n mv">${mv}</td><td class="n">${solde(s, c)}</td></tr>`; }).join("");
     const tot = ls.length > 1 ? `<tr class="glx-tot"><td colspan="4" class="lb">Total ${c}</td><td class="n dc">${num(D)}</td><td class="n dc">${num(C)}</td><td class="n mv"></td><td class="n">${solde(sol, c)}</td></tr>` : "";
     return `<tbody class="glx-c ${ferme?"ferme":""}"><tr class="glx-h"><td colspan="8"><div class="glx-hd" role="button" tabindex="0" aria-expanded="${!ferme}" onclick="basculerCompteGL('${c}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();basculerCompteGL('${c}')}">
@@ -2975,7 +2985,7 @@ function vueEmprunt(){
   return tete + L.map((l,idx) => {
     const rows = echeancier(l), der = rows[rows.length-1], a = empruntAnnee(l, y);
     const crd = plusieurs ? a.crdFin : c ? c.crd : a.crdFin, int = plusieurs ? (c ? interetsPret(l, y) : a.interets) : c ? c.interets : a.interets;
-    return `<div class="row" style="justify-content:space-between;margin:${idx||plusieurs?"28px":"0"} 0 16px"><div class="pagehead" style="margin:0"><h1>${plusieurs ? `<span class="sub" style="font-size:.6em;display:block">Prêt ${idx+1}</span>` : ""}Emprunt ${esc(l.banque)}</h1></div><div class="row tetep-act">${plusieurs ? menu3([["Supprimer ce prêt", `supprimerEmprunt(${idx})`, "danger"]], "Actions du prêt") : ajout}</div></div>
+    return `<div class="row" id="pret-${l.id}" style="justify-content:space-between;margin:${idx||plusieurs?"28px":"0"} 0 16px;scroll-margin-top:16px"><div class="pagehead" style="margin:0"><h1>${plusieurs ? `<span class="sub" style="font-size:.6em;display:block">Prêt ${idx+1}</span>` : ""}Emprunt ${esc(l.banque)}</h1></div><div class="row tetep-act">${plusieurs ? menu3([["Supprimer ce prêt", `supprimerEmprunt(${idx})`, "danger"]], "Actions du prêt") : ajout}</div></div>
     <div class="tuiles">${tuile("Capital emprunté", eur0(l.capital))}${tuile(`Restant dû fin ${y}`, eur0(crd), {col:"var(--accent)", sous: plusieurs ? "selon l'échéancier" : selonComptes("selon les comptes")})}${tuile(`Intérêts ${y} comptabilisés`, eur0(int), {sous: c && !int ? "aucune écriture bancaire" : "déductibles"})}${tuile("Fin du prêt", der?`${MOIS_LONG[der.mois-1]} ${der.annee}`:"–")}</div>
     ${carteSuiviPret(l, idx, y)}
     ${carteContrat(l, idx)}
@@ -3694,7 +3704,7 @@ function etatsFinanciers(y){
 /* Reconstitue les écritures comptables d'un exercice à partir des saisies (rien n'est stocké en plus) */
 function ecrituresComptables(y){
   const out = [], c = calculAnnee(y), fin = `${y}-12-31`, debut = `${y}-01-01`;
-  const add = (journal, date, lib, lignes, piece, src) => { lignes = lignes.filter(l => Math.abs(l.d||0) > 0.004 || Math.abs(l.cr||0) > 0.004); if(lignes.length) out.push({journal, date, lib, lignes, piece, src}); };
+  const add = (journal, date, lib, lignes, piece, src, lien) => { lignes = lignes.filter(l => Math.abs(l.d||0) > 0.004 || Math.abs(l.cr||0) > 0.004); if(lignes.length) out.push({journal, date, lib, lignes, piece, src, lien}); };
   // À-nouveaux : immobilisations, amortissements antérieurs, emprunt ; le compte de l'exploitant équilibre
   const an = [];
   S.data.immobilisations.forEach(i => {
@@ -3722,7 +3732,8 @@ function ecrituresComptables(y){
     const k = e.nature === "Achat d'immobilisation" && y >= depuis404() ? "404000" : compteNature(e.nature), m = r2(e.montant), lib = [e.tiers, e.nature].filter(Boolean).join(" - ");
     const recette = estEntree(e), bien = pImmo.part[e.id] ? S.data.immobilisations.find(x => x.id === e.immo) : null;
     const debit = bien ? [...lignesBien(bien, pImmo.part[e.id]), {c:k, d:r2(m - pImmo.part[e.id])}] : [{c:k, d:m}];
-    add("BQ", e.date, bien ? `${lib} - ${bien.libelle}` : lib, recette ? [{c:"512000", d:m}, {c:k, cr:m}] : [...debit, {c:"512000", cr:m}], e.piece ? e.piece.split("/").pop() : e.id, e);
+    const im = bien || (e.immo && S.data.immobilisations.find(x => x.id === e.immo)), pr = (NAT_PRET[e.nature] || e.nature === "Versement d'un prêt") && (pretDe(e) || (S.data.emprunts.length === 1 ? S.data.emprunts[0].id : null));
+    add("BQ", e.date, lib, recette ? [{c:"512000", d:m}, {c:k, cr:m}] : [...debit, {c:"512000", cr:m}], e.piece ? e.piece.split("/").pop() : e.id, e, im ? {immo:im.id} : pr ? {pret:pr} : null);
   });
   // Dotations aux amortissements, par catégorie
   const dot = {};
@@ -3732,12 +3743,12 @@ function ecrituresComptables(y){
   // Biens acquis dans l'année : dus au fournisseur (404) jusqu'à leur paiement
   S.data.immobilisations.filter(i => via404(i) && yearOf(i.miseEnService) === y).forEach(i => {
     const reste = r2(i.valeurOrigine - (pImmo.paye[i.id] || 0)); if(reste <= 0) return; // entièrement payé par des paiements rattachés
-    add("OD", i.miseEnService, `Acquisition - ${i.libelle || "immobilisation"}${reste < i.valeurOrigine ? " (part non rattachée à un paiement)" : ""}`, [...lignesBien(i, reste), {c:"404000", cr:reste}]);
+    add("OD", i.miseEnService, `Acquisition - ${i.libelle || "immobilisation"}${reste < i.valeurOrigine ? " (part non rattachée à un paiement)" : ""}`, [...lignesBien(i, reste), {c:"404000", cr:reste}], null, null, {immo:i.id});
   });
   // Déblocage d'un prêt : la part reçue sur le compte passe par le compte de l'exploitant (« Versement d'un prêt »), le reste a payé directement le vendeur (404)
   let direct = pretDirect404(y);
   pretsDebloques(y).forEach(l => { const cap = r2(l.capital), dir = r2(Math.min(direct, cap)); direct = r2(direct - dir);
-    add("OD", dateDeblocage(l), `Déblocage du prêt ${l.banque || ""}`.trim(), [{c:"108000", d:r2(cap - dir)}, {c:"404000", d:dir}, {c:"164000", cr:cap}]); });
+    add("OD", dateDeblocage(l), `Déblocage du prêt ${l.banque || ""}`.trim(), [{c:"108000", d:r2(cap - dir)}, {c:"404000", d:dir}, {c:"164000", cr:cap}], null, null, {pret:l.id}); });
   const rg4 = regul404(y);
   if(rg4) add("OD", fin, "Biens payés avec des fonds personnels" + (exercice(y).regul404.motif ? " - " + exercice(y).regul404.motif : ""), rg4 > 0 ? [{c:"404000", d:rg4}, {c:"108000", cr:rg4}] : [{c:"108000", d:-rg4}, {c:"404000", cr:-rg4}]);
   // Régularisation du restant dû saisie dans le dossier (page Emprunt) : écart entre le 164 et l'échéancier de la banque
@@ -3825,7 +3836,7 @@ function csvEcritures(y, vue){
     const lg = S.lignesGL || "", out = [];
     ecrituresComptables(y).forEach(e => e.lignes.forEach(l => {
       const autres = [...new Set(e.lignes.filter(o => o.c !== l.c).map(o => o.c))];
-      const x = {c:l.c, date:e.date, j:e.journal, lib:e.lib, d:l.d||0, cr:l.cr||0, src:e.src, cp: autres.length === 1 ? autres[0] : "Divers"};
+      const x = {c:l.c, date:e.date, j:e.journal, lib:e.lib, d:l.d||0, cr:l.cr||0, src:e.src, lien:e.lien, cp: autres.length === 1 ? autres[0] : "Divers"};
       if(passeLignesGL(x, lg) && passeFiltre(x, J, "gl")) out.push(x); }));
     out.sort((a, b) => a.c.localeCompare(b.c) || a.date.localeCompare(b.date));
     return telechargerCSV(`grand-livre-${y}.csv`, [["Compte", "Intitulé", "Date", "Journal", "Contrepartie", "Libellé", "Débit", "Crédit"],
