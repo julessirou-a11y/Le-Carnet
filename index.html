@@ -5583,7 +5583,7 @@ function vueBanque(){
   const totVis = r2(vis.reduce((t,o) => t + o.montant, 0));
   const y = S.year, t = totauxEcritures(y), postes = Object.entries(t.parNature).sort((a,b)=>b[1]-a[1]), maxP = Math.max(1, ...postes.map(p=>p[1]));
   const ty = FILTRES.find(f => f.k === S.qType);
-  const onglets = tetePage("Banque", segments("bqOnglet", [["operations", "Opérations"], ["regles", `Règles (${B.regles.length})`]], S.bqOnglet || "operations"));
+  const onglets = tetePage("Banque", segments("bqOnglet", [["operations", "Opérations"], ["regles", "Règles"]], S.bqOnglet || "operations"));
   if(S.bqOnglet === "regles") return onglets + vueRegles();
   return `${onglets}
   ${tous.length ? `<div class="card">
