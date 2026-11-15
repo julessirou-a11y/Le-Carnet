@@ -5690,12 +5690,12 @@ function vueBanque(){
   if(S.bqOnglet === "regles") return onglets + vueRegles();
   return `${onglets}
   ${total ? `<div class="card">
-    <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser} à classer · ${classes} classée${pl(classes)} en ${S.year}, déjà passée${pl(classes)} en écritures</p></div>
+    <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser} à classer · ${classes} classée${pl(classes)}</p></div>
       <div class="row" style="gap:8px"><button class="btn sec small" onclick="importerCSV()">Importer un relevé</button></div></div>
     ${jauge([[classes,"var(--pos)"]], total, 8)}
     <div class="bqtools">
       <div class="fzone noprint">
-        <select aria-label="Opérations affichées" onchange="vueBq(this.value)">${[["atraiter",`À classer (${aClasser})`],["classees",`Classées en ${S.year} (${classes})`],["toutes",`Toutes (${total})`]].map(([k,l]) => `<option value="${k}" ${S.bqVue===k?"selected":""}>${l}</option>`).join("")}</select>
+        <select aria-label="Opérations affichées" onchange="vueBq(this.value)">${[["atraiter",`À classer (${aClasser})`],["classees",`Classées (${classes})`],["toutes",`Toutes (${total})`]].map(([k,l]) => `<option value="${k}" ${S.bqVue===k?"selected":""}>${l}</option>`).join("")}</select>
         <div class="qwrap"><div class="qbar" onclick="if(!event.target.closest('button'))$('#qEcr').focus()">${I_LOUPE}${pastillesFiltres("bq")}${ty ? `<span class="qtype">${esc(ty.lib.replace("…",""))}</span>` : ""}
           <input id="qEcr" type="text" autocomplete="off" spellcheck="false" aria-label="Filtrer" placeholder="${ty ? esc(ty.aide || (ty.liste ? "Chercher…" : "Valeur…")) : "Filtrez par…"}"
             value="${esc(S.qEcr||"")}" onfocus="ouvrirMenu()" oninput="S.qEcr=this.value;S.qSel=0;majMenu()" onkeydown="toucheRecherche(event)" onblur="setTimeout(fermerMenu,120)">
