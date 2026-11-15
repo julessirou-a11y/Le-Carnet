@@ -505,7 +505,7 @@ table.journal tr.editing td{background:var(--accent-soft)}
 td.act{white-space:nowrap}
 /* Écritures : un seul tableau par mois, lecture « argent reçu / argent payé » */
 table.ejx{table-layout:fixed;font-size:13.5px;font-variant-numeric:tabular-nums}
-table.ejx th.d{width:84px} table.ejx th.ca{width:210px} table.ejx th.pj{width:150px} table.ejx th.mt{width:130px} table.ejx th.ac{width:96px}
+table.ejx th.d{width:84px} table.ejx th.ca{width:210px} table.ejx th.cpj{width:150px} table.ejx th.mt{width:130px} table.ejx th.cac{width:96px}
 table.ejx thead th{background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line)}
 table.ejx th.n,table.ejx td.n{text-align:right;white-space:nowrap}
 table.ejx td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:middle}
@@ -539,10 +539,10 @@ td.mt b{font-weight:600} td.mt.in b{color:var(--pos)}
 .ejx-pj.add{background:none;color:var(--faint);font-weight:500;padding-left:0;opacity:0;transition:opacity .15s} tr:hover .ejx-pj.add,.ejx-pj.add:focus-visible{opacity:1} .ejx-pj.add:hover{color:var(--accent)}
 @media (hover:none){ .ejx-pj.add{opacity:1} }
 .ejx-pjm{display:none}
-td.ac{white-space:nowrap} td.ac .btn{opacity:.35} tr:hover td.ac .btn,td.ac .btn:focus-visible{opacity:1}
+td.cac{white-space:nowrap;text-align:right} td.cac .btn{opacity:.35} tr:hover td.cac .btn,td.cac .btn:focus-visible{opacity:1}
 tbody.ejx-tot td{background:var(--accent-soft);font-weight:600}
 @media (max-width:700px){
-  table.ejx th.ca,table.ejx td.ca,table.ejx th.pj,table.ejx td.pj,table.ejx th.ac,table.ejx td.ac{display:none}
+  table.ejx th.ca,table.ejx td.ca,table.ejx th.cpj,table.ejx td.cpj,table.ejx th.cac,table.ejx td.cac{display:none}
   table.ejx{table-layout:auto} table.ejx th.d{width:auto} table.ejx th.mt{width:auto}
   table.ejx td.d{white-space:nowrap;vertical-align:top} table.ejx td.mt{vertical-align:top}
   .ejx-tu{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px} .ejx-tu .tuile{padding:12px 14px} .ejx-tu .tuile .tv{font-size:20px}
@@ -942,7 +942,7 @@ dialog#viewer::backdrop{background:rgba(10,15,25,.5)}
 .bql>b{font-weight:500;font-size:13.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .bql>small{font-size:12px;color:var(--muted)}
 .bqr.ok .bql>b{color:var(--muted);font-weight:400}
-.bqm{text-align:right;font-weight:600;white-space:nowrap} .bqm.in{color:var(--pos)}
+.bqfige{font-size:12.5px;color:var(--faint);text-align:center;white-space:nowrap} .bqm{text-align:right;font-weight:600;white-space:nowrap} .bqm.in{color:var(--pos)}
 .bqn{min-width:0;font-size:13px} .bqn .chip{white-space:normal}
 .bqac{display:inline-block;font-size:12.5px;color:var(--muted);border:1px dashed var(--faint);border-radius:99px;padding:1px 9px}
 .bqb{justify-self:end}
@@ -1290,7 +1290,7 @@ function normalize(d){
   d.immobilisations.forEach(i => { i.id ??= uid(); i.quotePartTerrain ??= 0; });
   d.banque ??= {};
   d.documents ??= [];
-  d.banque.regles ??= []; d.banque.aTrier ??= []; d.banque.ignorees ??= [];
+  d.banque.regles ??= []; d.banque.aTrier ??= []; d.banque.ignorees ??= []; d.banque.ignorees.forEach(o => o.id ??= uid());
   d.factures ??= []; d.facturesLues ??= [];
   d.filtresEcritures ??= [];
   d.filtresEcritures.forEach(f => { if(!f.jetons){ f.jetons = jetonsDepuisObjet(f.filtre || {}); delete f.filtre; } });
@@ -1536,13 +1536,14 @@ function chargerDonnees(obj, nom){
   if(!obj || obj.format !== "outil-lmnp") throw new Error("Ce fichier n'est pas un dossier de l'outil LMNP.");
   S.data = normalize(obj); S.fileName = nom; S.bq.sel.clear(); S.bq.garde.clear(); S.autoMsg = DEPOT ? "Lecture seule · dépôt de pièces" : ""; S.sauvegardeSession = false; S.versionLue = obj.derniereModification || null; S.conflit = false;
   rattacherEcheanciers(); // à l'ouverture : rattaché en mémoire, sans marquer le dossier comme modifié
+  const ecritesOuverture = DEPOT ? 0 : rangerBanque([...S.data.banque.aTrier]).n; // opérations classées d'avant (étape « Valider » supprimée) : passées en écritures
   const ys = Object.keys(S.data.exercices).map(Number).sort((a,b)=>a-b);
   // L'exercice affiché à l'ouverture : le plus récent encore ouvert, sinon le plus récent
   const detailles = ys.filter(y=>!isHistorique(y));
   S.year = detailles.filter(y=>!verrouille(y)).pop() ?? detailles.pop() ?? ys.pop();
   if(DEPOT){ S.instantane = JSON.stringify(S.data); S.tab = "depot"; memoriserDossier(obj, nom); }
   appliquerLienGL();
-  setDirty(false); renderAll();
+  setDirty(ecritesOuverture > 0); renderAll();
 }
 /* Grand livre filtré dans un nouvel onglet : clic sur un montant (filtre « Montant exact ») ou un numéro de compte (filtre « Compte »).
    L'adresse porte le filtre (?gl=1&an=2026&compte=… ou &montant=…) ; le nouvel onglet demande le dossier ouvert à l'onglet d'origine,
@@ -2255,15 +2256,15 @@ function tableEcritures(list, lock, filtre){
   const ligne = e => { const inn = grpNature(e) === "recette";
     return `<tr class="${S.editId===e.id?"editing":""}"><td class="d"><span class="jr">${e.date.slice(8,10)}</span><span class="mo">${MOIS[monthOf(e.date)-1]}</span></td>
       <td><div class="ejx-op"><span class="ejx-ic ${inn?"in":""}" title="${inn?"Argent reçu":"Argent payé"}">${inn?IC_EJ.in:IC_EJ.out}</span><span class="ejx-t" ${e.libelleBanque?`title="Relevé : ${esc(e.libelleBanque)}"`:""}><b>${esc(e.tiers)||"–"}</b>${e.commentaire?`<small>${esc(e.commentaire)}</small>`:""}<span class="ejx-cm">${chipNature(e.nature)}</span></span></div></td>
-      <td class="ca">${chipNature(e.nature)}</td><td class="pj noprint">${pj(e)}</td>
+      <td class="ca">${chipNature(e.nature)}</td><td class="cpj noprint">${pj(e)}</td>
       <td class="n mt ${inn?"in":""}">${lienGL({t:"montant", op:"=", v:e.montant}, `<b>${inn?"+":"−"}${num(e.montant)}</b> €`)}</td>
-      <td class="n ac noprint">${lock?"":`<button class="btn ghost small" aria-label="Modifier" title="Modifier" onclick="S.editId='${e.id}';renderAll();haut()">${I_EDIT}</button><button class="btn ghost small" aria-label="Supprimer" title="Supprimer" onclick="delEcriture('${e.id}')">${I_DEL}</button>`}</td></tr>`; };
+      <td class="n cac noprint">${lock?"":`<button class="btn ghost small" aria-label="Modifier" title="Modifier" onclick="S.editId='${e.id}';renderAll();haut()">${I_EDIT}</button><button class="btn ghost small" aria-label="Supprimer" title="Supprimer" onclick="delEcriture('${e.id}')">${I_DEL}</button>`}</td></tr>`; };
   const corps = Object.keys(parMois).map(Number).sort((a,b)=>a-b).map(m => { const ls = parMois[m], ferme = !!(S.ecrFerme||{})[m];
     return `<tbody class="ejx-m ${ferme?"ferme":""}"><tr class="ejx-h"><td colspan="6"><div class="blx-hd">
       <span class="glx-pill ejx-pill">${IC_EJ.cal}${MOIS_LONG[m-1]}</span><span class="glx-rule"></span>${som(ls)}<button class="ejx-rep noprint" aria-expanded="${!ferme}" title="${ferme?"Afficher":"Masquer"} les opérations de ${MOIS_LONG[m-1]}" onclick="basculerMoisEcr(${m})"><span class="glx-chev">${IC_GL.chevron}</span></button></div></td></tr>
       ${ferme ? `<tr class="ejx-masq"><td colspan="6"><button onclick="basculerMoisEcr(${m})">Afficher les ${ls.length} opération${ls.length>1?"s":""} de ${MOIS_LONG[m-1]}</button></td></tr>` : ""}${ls.map(ligne).join("")}</tbody>`; }).join("");
   return `<div class="card glxw"><div class="tablewrap"><table class="ejx">
-    <thead><tr><th class="d">Date</th><th>Opération</th><th class="ca">Catégorie</th><th class="pj noprint">Justificatif</th><th class="n mt">Montant</th><th class="ac noprint"></th></tr></thead>
+    <thead><tr><th class="d">Date</th><th>Opération</th><th class="ca">Catégorie</th><th class="cpj noprint">Justificatif</th><th class="n mt">Montant</th><th class="cac noprint"></th></tr></thead>
     ${corps}
     ${filtre ? `<tbody class="ejx-tot"><tr><td colspan="6"><div class="blx-hd"><span>Total filtré</span><span class="glx-rule"></span>${som(list)}</div></td></tr></tbody>` : ""}
   </table></div></div>`;
@@ -5216,11 +5217,12 @@ function validerImport(){
     B.aTrier.push(item);
   });
   B.formatCsv = {signature:imp.signature, map:{...m}};
-  S.imp = null; setDirty(); renderAll();
-  toast(`${nouvelles.length} opération${pl(nouvelles.length)} ajoutée${pl(nouvelles.length)} à trier${auto?`, dont ${auto} classée${pl(auto)} par vos règles`:""}. ${ops.length-nouvelles.length} déjà connue${pl(ops.length-nouvelles.length)}${rejets?`, ${rejets} ligne${pl(rejets)} illisible${pl(rejets)} ignorée${pl(rejets)}`:""}.`);
+  const rg = rangerBanque([...B.aTrier]);
+  S.imp = null; setDirty(); renderAll(); avertirRangement(rg);
+  toast(`${nouvelles.length} opération${pl(nouvelles.length)} ajoutée${pl(nouvelles.length)} à trier${auto?`, dont ${auto} classée${pl(auto)} par vos règles et passée${pl(auto)} en écritures`:""}. ${ops.length-nouvelles.length} déjà connue${pl(ops.length-nouvelles.length)}${rejets?`, ${rejets} ligne${pl(rejets)} illisible${pl(rejets)} ignorée${pl(rejets)}`:""}.`);
 }
 function trouverOp(id){ return S.data.banque.aTrier.find(o => o.id === id); }
-function poserNature(o, v){ o.nature = v; delete o.regle; if(v === IGNORER) delete o.doublon; else if(!o.pasDoublon) chercherDoublon(o); }
+function poserNature(o, v){ o.nature = v; delete o.regle; if(o.src) return; if(v === IGNORER || !v) delete o.doublon; else if(!o.pasDoublon) chercherDoublon(o); }
 async function scinderOp(id){
   const o = trouverOp(id), tot = Math.abs(o.montant), fr = x => x.toLocaleString("fr-FR", {minimumFractionDigits:2, maximumFractionDigits:2});
   // Échéance de prêt reconnue (même mois, même total) : la ventilation de l'échéancier est proposée, natures comprises
@@ -5241,30 +5243,66 @@ async function scinderOp(id){
 function confirmerDoublon(id, oui){
   const o = trouverOp(id), B = S.data.banque;
   if(oui){ const e = findEcr(o.doublon); e.banque = o.cle; e.libelleBanque = o.libelle; B.aTrier = B.aTrier.filter(x => x !== o); toast("Opération rapprochée de l'écriture déjà saisie."); }
-  else { delete o.doublon; o.pasDoublon = true; }
+  else { delete o.doublon; o.pasDoublon = true; rangerBanque([o]); }
   setDirty(); renderAll();
 }
-function validerTri(ids){
-  const B = S.data.banque, prets = B.aTrier.filter(o => o.nature && (!ids || ids.has(o.id)));
-  if(!prets.length) return avertir("Aucune opération classée pour l'instant.");
+/* ---- Classer = écrire : une opération classée devient tout de suite une écriture (ou « hors location »).
+   La page Banque montre ensemble les opérations en attente (banque.aTrier) et celles déjà passées en écritures ou hors location,
+   sous forme de lignes : src "ecr" (écriture, e), "ign" (hors location, ref) ; sans src = en attente. ---- */
+function lignesClassees(tout){
+  const L = [], an = y => tout || y === S.year;
+  for(const [k, ex] of Object.entries(S.data.exercices)){ if(ex.statut === "historique" || !an(+k)) continue;
+    (ex.ecritures||[]).forEach(e => { if(e.banque) L.push({id:e.id, src:"ecr", e, cle:e.banque, date:e.date, libelle:e.libelleBanque || e.tiers || e.nature, montant:estEntree(e) ? e.montant : -e.montant, nature:e.nature, tiers:e.tiers || "", ...(e.regle ? {regle:e.regle} : {}), fige:verrouille(+k)}); }); }
+  S.data.banque.ignorees.forEach(o => an(yearOf(o.date)) && L.push({id:o.id, src:"ign", ref:o, cle:o.cle, date:o.date, libelle:o.libelle, montant:o.montant, nature:IGNORER, tiers:"", ...(o.regle ? {regle:o.regle} : {}), fige:verrouille(yearOf(o.date))}));
+  return L;
+}
+const lignesBq = () => [...S.data.banque.aTrier, ...lignesClassees()];
+function trouverLigne(id){ return trouverOp(id) || lignesClassees(true).find(o => o.id === id); }
+/* Range chaque ligne selon sa nature : écriture, hors location ou de nouveau en attente. Renvoie {n: écritures et hors location créées, bloques, pieces} */
+function rangerBanque(L){
+  const B = S.data.banque, bloques = new Set(); let n = 0, pieces = 0;
   const derniere = Math.max(...Object.keys(S.data.exercices).map(Number));
-  let n = 0, ign = 0; const bloques = new Set(), faites = new Set();
-  for(const o of prets){
-    if(o.nature === IGNORER){ B.ignorees.push({cle:o.cle, date:o.date, libelle:o.libelle, montant:o.montant}); ign++; faites.add(o); continue; }
+  const ouvert = y => { if(!exercice(y) && y > derniere) S.data.exercices[y] = {statut:"en-cours", ecritures:[]};
+    const ok = exercice(y) && !isHistorique(y) && !verrouille(y); if(!ok) bloques.add(y); return ok; };
+  const enAttente = o => { B.aTrier.push({id:o.id, cle:o.cle, date:o.date, libelle:o.libelle, montant:o.montant, nature:"", tiers:o.tiers || tiersSuggere(o.libelle)}); o.src = "attente"; };
+  const ecrire = o => { const ex = exercice(yearOf(o.date)); ex.ecritures ??= [];
+    const e = {id:o.id, date:o.date, tiers:o.tiers || "", nature:o.nature, montant:r2(Math.abs(o.montant)), sens:entreeNature(o.nature) ? "recette" : "depense", banque:o.cle, libelleBanque:o.libelle, ...(o.regle ? {regle:o.regle} : {})};
+    ex.ecritures.push(e); o.src = "ecr"; o.e = e; n++; };
+  const ignorer = o => { const g = {id:o.id, cle:o.cle, date:o.date, libelle:o.libelle, montant:o.montant, ...(o.regle ? {regle:o.regle} : {})}; B.ignorees.push(g); o.src = "ign"; o.ref = g; n++; };
+  for(const o of L){
     const y = yearOf(o.date);
-    if(!exercice(y) && y > derniere) S.data.exercices[y] = {statut:"en-cours", ecritures:[]};
-    if(!exercice(y) || isHistorique(y) || verrouille(y)){ bloques.add(y); continue; }
-    const ex = exercice(y); ex.ecritures ??= [];
-    ex.ecritures.push({id:uid(), date:o.date, tiers:o.tiers||"", nature:o.nature, montant:r2(Math.abs(o.montant)),
-      sens: entreeNature(o.nature) ? "recette" : "depense", banque:o.cle, libelleBanque:o.libelle});
-    n++; faites.add(o);
+    if(!o.src){ // en attente
+      if(!o.nature || o.doublon || !B.aTrier.includes(o)) continue;
+      if(o.nature !== IGNORER && !ouvert(y)) continue;
+      B.aTrier = B.aTrier.filter(x => x !== o); delete o.doublon; delete o.pasDoublon;
+      o.nature === IGNORER ? ignorer(o) : ecrire(o);
+    } else if(o.src === "ecr"){
+      const ex = exercice(y); if(!ex?.ecritures?.includes(o.e)) continue;
+      if(!ouvert(y)) continue;
+      if(o.nature && o.nature !== IGNORER){ Object.assign(o.e, {nature:o.nature, sens:entreeNature(o.nature) ? "recette" : "depense", tiers:o.tiers || ""}); o.regle ? o.e.regle = o.regle : delete o.e.regle; continue; }
+      if(o.e.piece){ pieces++; o.nature = o.e.nature; continue; } // un justificatif est rattaché : on garde l'écriture
+      ex.ecritures = ex.ecritures.filter(x => x !== o.e);
+      o.nature ? ignorer(o) : enAttente(o);
+    } else if(o.src === "ign"){
+      if(!B.ignorees.includes(o.ref)) continue;
+      if(o.nature === IGNORER){ o.regle ? o.ref.regle = o.regle : delete o.ref.regle; continue; }
+      if(o.nature && !ouvert(y)) continue;
+      B.ignorees = B.ignorees.filter(x => x !== o.ref);
+      o.nature ? ecrire(o) : enAttente(o);
+    }
   }
-  B.aTrier = B.aTrier.filter(o => !faites.has(o));
-  faites.forEach(o => S.bq.sel.delete(o.id));
-  const lies = rapprocherFactures();
-  setDirty(); renderAll();
-  toast(`${n} écriture${pl(n)} créée${pl(n)}, ${ign} opération${pl(ign)} ignorée${pl(ign)}${lies?`, ${lies} facture${pl(lies)} reçue${pl(lies)} rattachée${pl(lies)}`:""}.`);
-  if(bloques.size) avertir(`Certaines opérations restent à trier : l'exercice ${[...bloques].sort().join(", ")} est clôturé, repris de l'Excel ou n'existe pas. Rouvrez-le ou ignorez ces opérations.`);
+  if(n) rapprocherFactures();
+  return {n, bloques, pieces};
+}
+function avertirRangement(r){
+  const msg = [r.bloques.size ? `L'exercice ${[...r.bloques].sort().join(", ")} est clôturé, repris de l'Excel ou n'existe pas : ses opérations n'ont pas été modifiées. Rouvrez-le pour les reclasser.` : "",
+    r.pieces ? `${r.pieces} écriture${pl(r.pieces)} avec un justificatif rattaché ${r.pieces > 1 ? "restent" : "reste"} en place : détachez d'abord la pièce dans Écritures.` : ""].filter(Boolean);
+  if(msg.length) avertir(msg.join("\n\n"));
+}
+/* Ancien bouton « Valider » : range les opérations classées encore en attente */
+function validerTri(ids){
+  const L = S.data.banque.aTrier.filter(o => o.nature && (!ids || ids.has(o.id)));
+  const r = rangerBanque(L); setDirty(); renderAll(); avertirRangement(r);
 }
 function remettreATrier(i){
   const B = S.data.banque, o = B.ignorees[i];
@@ -5348,7 +5386,7 @@ function passeFiltreBq(o, J){
 /* Opérations affichées : vue (à classer, classées, toutes), filtres, puis tri par colonne */
 function opsVisibles(){
   const F = S.bq, v = S.bqVue, J = S.fBq || [];
-  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature)) && passeFiltreBq(o, J));
+  const L = (v === "atraiter" ? S.data.banque.aTrier : v === "classees" ? lignesClassees() : lignesBq()).filter(o => passeFiltreBq(o, J));
   const [col, sens] = (F.tri || "date").split("-"), k = sens === "desc" ? -1 : 1;
   const cmp = {date:(a,b) => a.date.localeCompare(b.date), libelle:(a,b) => norm(a.libelle).localeCompare(norm(b.libelle)) || a.date.localeCompare(b.date),
     montant:(a,b) => a.montant - b.montant || a.date.localeCompare(b.date), nature:(a,b) => libNatOp(a.nature).localeCompare(libNatOp(b.nature)) || a.date.localeCompare(b.date)}[col];
@@ -5375,7 +5413,7 @@ function plageOp(id, on){
   F.dernier = id; document.getSelection()?.removeAllRanges(); majSelection();
 }
 function selTout(on){ opsVisibles().forEach(o => on ? S.bq.sel.add(o.id) : S.bq.sel.delete(o.id)); majSelection(); }
-const opsSel = () => S.data.banque.aTrier.filter(o => S.bq.sel.has(o.id));
+const opsSel = () => S.bq.sel.size ? lignesBq().filter(o => S.bq.sel.has(o.id)) : [];
 /* Ce que vise le bouton « Classer » : la sélection, sinon tout ce qui est affiché */
 const ciblesClasser = () => S.bq.sel.size ? opsSel() : opsVisibles();
 const signeEur = t => (t > 0.004 ? "+" : t < -0.004 ? "−" : "") + eur(Math.abs(t));
@@ -5402,13 +5440,14 @@ function creerRegle(mc, modeles, silencieux){
   B.regles.push({id:uid(), motCle:mc, sens:sensOp(o), nature:o.nature, tiers:o.nature === IGNORER ? "" : (o.tiers||"")});
   modeles.forEach(x => { if(norm(x.libelle).includes(norm(mc))) x.regle = mc; });
   let n = 0;
-  B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; S.bq.garde.add(x.id); if(x.nature === IGNORER) delete x.doublon; else if(!x.pasDoublon) chercherDoublon(x); } } });
+  B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; if(x.nature === IGNORER) delete x.doublon; else if(!x.pasDoublon) chercherDoublon(x); } } });
+  rangerBanque([...modeles, ...B.aTrier]);
   if(!silencieux){ setDirty(); renderAll(); toast(`Règle « ${mc} » mémorisée${n?`, ${n} autre${pl(n)} opération${pl(n)} classée${pl(n)}`:""}.`); }
   return n;
 }
 /* Fenêtre « Classer » : nature (raccourcis vers les plus utilisées), tiers ; « Classer et créer une règle » ouvre ensuite la fenêtre « Nouvelle règle » */
 function ouvrirClasser(id){
-  const L = id ? [trouverOp(id)].filter(Boolean) : ciblesClasser(); if(!L.length) return;
+  const L = (id ? [trouverLigne(id)] : ciblesClasser()).filter(o => o && !o.fige); if(!L.length) return avertir("Cette opération appartient à un exercice clôturé : rouvrez-le pour la reclasser.");
   const cr = L.some(o => o.montant > 0), db = L.some(o => o.montant < 0), mixte = cr && db, un = L.length === 1, o0 = L[0];
   const tot = r2(L.reduce((t,o) => t + o.montant, 0)), natCommune = new Set(L.map(o => o.nature)).size === 1 ? o0.nature : "";
   const fam = famille(o0), texteF = (S.fBq || []).find(j => j.t === "texte")?.v;
@@ -5427,7 +5466,7 @@ function ouvrirClasser(id){
     ${mixte ? `<p class="bqcl-n">Entrées et sorties d'argent mélangées : la nature ne s'applique qu'aux opérations de même sens.</p>` : ""}
     <div class="row"><button class="btn" value="oui" type="submit">${un ? "Classer" : `Classer les ${L.length}`}</button>${mixte ? "" : `<button class="btn sec" value="regle" type="submit">Classer et créer une règle…</button>`}<button class="btn ghost" value="non" type="submit" formnovalidate>Annuler</button>
       ${L.some(o => o.nature) ? `<button class="btn ghost" value="remettre" type="submit" formnovalidate style="margin-right:auto">Remettre à classer</button>` : ""}
-      ${un && o0.nature !== IGNORER ? `<button class="btn ghost" value="repartir" type="submit" formnovalidate style="margin-right:auto">✂ Répartir…</button>` : ""}</div></form>`;
+      ${un && !o0.src && o0.nature !== IGNORER ? `<button class="btn ghost" value="repartir" type="submit" formnovalidate style="margin-right:auto">✂ Répartir…</button>` : ""}</div></form>`;
   document.body.appendChild(d);
   const sel = d.querySelector("select"), tiers = d.querySelector("[name=tiers]");
   const majRacc = () => { d.querySelectorAll(".bqcl-r .poste").forEach(b => b.classList.toggle("on", b.dataset.n === sel.value)); tiers.closest("label").hidden = sel.value === IGNORER; };
@@ -5435,7 +5474,7 @@ function ouvrirClasser(id){
   d.querySelectorAll(".bqcl-r .poste").forEach(b => b.addEventListener("click", () => { sel.value = b.dataset.n; majRacc(); }));
   d.addEventListener("close", () => {
     const r = d.returnValue, v = sel.value, t = tiers.value.trim(); d.remove();
-    if(r === "remettre"){ L.forEach(o => { poserNature(o, ""); S.bq.sel.delete(o.id); }); setDirty(); renderAll(); return toast(`${L.length} opération${pl(L.length)} remise${pl(L.length)} à classer.`); }
+    if(r === "remettre"){ L.forEach(o => { poserNature(o, ""); S.bq.sel.delete(o.id); }); const rg = rangerBanque(L); setDirty(); renderAll(); avertirRangement(rg); return toast(`${L.length} opération${pl(L.length)} remise${pl(L.length)} à classer.`); }
     if(r === "repartir") return scinderOp(o0.id);
     if(r !== "oui" && r !== "regle" || !v) return;
     const faits = classerOps(L, v, t, "");
@@ -5448,15 +5487,16 @@ function classerOps(L, v, tiers, mot){
   L.forEach(o => {
     if(v !== IGNORER && entreeNature(v) !== (o.montant > 0)){ autreSens++; return; }
     poserNature(o, v); if(tiers && v !== IGNORER) o.tiers = tiers;
-    S.bq.garde.add(o.id); S.bq.sel.delete(o.id); faits.push(o); k++;
+    S.bq.sel.delete(o.id); faits.push(o); k++;
   });
+  const rg = rangerBanque(faits), doublons = faits.filter(o => o.doublon).length;
   let regle = "", autres = 0;
   if(mot && faits.length){
     if(faits.some(o => norm(o.libelle).includes(norm(mot)))){ autres = creerRegle(mot, faits, true); regle = mot; }
     else avertir(`« ${mot} » n'apparaît dans le libellé d'aucune de ces opérations : la règle n'a pas été créée.`);
   }
-  setDirty(); renderAll();
-  toast(`${k} opération${pl(k)} classée${pl(k)} en « ${libNatOp(v)} »${regle ? `, règle « ${regle} » mémorisée${autres ? ` (${autres} autre${pl(autres)} classée${pl(autres)})` : ""}` : ""}${autreSens ? `. ${autreSens} ${autreSens > 1 ? "restent" : "reste"} à classer : sens différent` : ""}.`);
+  setDirty(); renderAll(); avertirRangement(rg);
+  toast(`${k} opération${pl(k)} classée${pl(k)} en « ${libNatOp(v)} »${doublons ? `, dont ${doublons} déjà saisie${pl(doublons)} peut-être : à confirmer dans « À classer »` : ""}${regle ? `, règle « ${regle} » mémorisée${autres ? ` (${autres} autre${pl(autres)} classée${pl(autres)})` : ""}` : ""}${autreSens ? `. ${autreSens} ${autreSens > 1 ? "restent" : "reste"} à classer : sens différent` : ""}.`);
   return faits;
 }
 /* ---- Règles : « si le libellé contient… », mémorisées dans le dossier, créées, modifiées ou supprimées dans l'onglet Règles ---- */
@@ -5467,8 +5507,8 @@ function libSurligne(lib, mc){
   const i = mc.trim() ? sansAccents(lib).indexOf(sansAccents(mc.trim())) : -1;
   return i < 0 ? esc(lib) : `${esc(lib.slice(0, i))}<mark>${esc(lib.slice(i, i + mc.trim().length))}</mark>${esc(lib.slice(i + mc.trim().length))}`;
 }
-/* Opérations encore en attente classées par cette règle */
-const opsDeRegle = r => S.data.banque.aTrier.filter(o => o.regle === r.motCle && sensOp(o) === r.sens);
+/* Opérations classées par cette règle (en attente ou déjà écrites, hors exercices clôturés) */
+const opsDeRegle = r => [...S.data.banque.aTrier, ...lignesClassees(true)].filter(o => o.regle === r.motCle && sensOp(o) === r.sens && !o.fige);
 /* Fenêtre « Nouvelle règle » (ou « Modifier la règle ») : aperçu de l'opération, mot-clé, sens, nature, tiers.
    o.op : l'opération montrée en aperçu (sinon la première à classer qui contient le mot-clé) ; o.modeles : opérations déjà classées à rattacher à la règle */
 function ouvrirRegle(o = {}){
@@ -5528,20 +5568,21 @@ function enregistrerRegle(val, r, modeles){
   B.regles = B.regles.filter(x => x === r || !(norm(x.motCle) === norm(val.motCle) && x.sens === val.sens));
   if(r) Object.assign(r, val); else B.regles.push(r = {id:uid(), ...val});
   // Opérations en attente classées par l'ancienne version de la règle : elles suivent la modification
-  let suit = 0;
-  if(avant) B.aTrier.forEach(x => { if(x.regle === avant.motCle && sensOp(x) === avant.sens){ if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; suit++; } else delete x.regle; } });
+  let suit = 0; const touchees = [];
+  if(avant) [...B.aTrier, ...lignesClassees(true)].filter(x => !x.fige).forEach(x => { touchees.push(x); if(x.regle === avant.motCle && sensOp(x) === avant.sens){ if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; suit++; } else delete x.regle; } });
   // Opérations qui ont servi de modèle (classées juste avant) : rattachées à la règle
-  modeles.forEach(x => { if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ if(x.nature !== r.nature) poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; } });
+  modeles.forEach(x => { touchees.push(x); if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ if(x.nature !== r.nature) poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; } });
   let n = 0;
   B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; if(x.nature === IGNORER) delete x.doublon; else if(!x.pasDoublon) chercherDoublon(x); } } });
-  setDirty(); renderAll();
+  const rg = rangerBanque([...touchees, ...B.aTrier]);
+  setDirty(); renderAll(); avertirRangement(rg);
   toast(`Règle « ${r.motCle} » ${avant ? "modifiée" : "créée"}${n ? `, ${n} opération${pl(n)} classée${pl(n)}` : ""}${suit ? `, ${suit} mise${pl(suit)} à jour` : ""}.`);
 }
 async function supprimerRegle(id){
   const B = S.data.banque, r = B.regles.find(x => x.id === id); if(!r) return;
   const n = opsDeRegle(r).length;
   if(!await confirmer(`Supprimer la règle « ${r.motCle} » ?\n\nLes prochaines opérations ne seront plus classées d'office.${n ? ` Les ${n} opération${pl(n)} déjà classée${pl(n)} par cette règle le ${n > 1 ? "restent" : "reste"}.` : ""}`, {ok:"Supprimer", danger:true})) return;
-  B.regles = B.regles.filter(x => x !== r); opsDeRegle(r).forEach(o => delete o.regle);
+  B.regles = B.regles.filter(x => x !== r); const lr = opsDeRegle(r); lr.forEach(o => delete o.regle); rangerBanque(lr);
   setDirty(); renderAll(); toast(`Règle « ${r.motCle} » supprimée.`);
 }
 /* Onglet Règles de la page Banque */
@@ -5560,7 +5601,7 @@ function vueRegles(){
 }
 function vueBanque(){
   if(S.imp) return vueImport();
-  const B = S.data.banque, F = S.bq, tous = B.aTrier, classes = tous.filter(o => o.nature).length, aClasser = tous.length - classes, J = S.fBq || [];
+  const B = S.data.banque, F = S.bq, aClasser = B.aTrier.length, classes = lignesClassees().length, total = aClasser + classes, J = S.fBq || [];
   const vis = opsVisibles(), ids = new Set(vis.map(o => o.id));
   F.sel.forEach(id => { if(!ids.has(id)) F.sel.delete(id); });
   const nSel = vis.filter(o => F.sel.has(o.id)).length, cibles = ciblesClasser();
@@ -5573,26 +5614,26 @@ function vueBanque(){
       <span class="bql" data-d="${d}"><b title="${esc(o.libelle)}">${esc(o.libelle)}</b>${sous ? `<small>${sous}</small>` : ""}</span>
       <b class="bqm ${credit ? "in" : ""}">${credit ? "+" : "−"}${eur(Math.abs(o.montant))}</b>
       <span class="bqn">${chipOp(o.nature)}</span>
-      <button class="btn small sec bqb" onclick="ouvrirClasser('${o.id}')">${o.nature ? "Modifier" : "Classer"}</button>
+      ${o.fige ? `<span class="bqb bqfige" title="Exercice clôturé : rouvrez-le pour modifier">🔒 Clôturé</span>` : `<button class="btn small sec bqb" onclick="ouvrirClasser('${o.id}')">${o.src ? "Modifier" : "Classer"}</button>`}
       ${e ? `<div class="alert warn" style="align-items:center;flex-wrap:wrap">Déjà saisie le ${fmtDate(e.date)} (${esc(e.tiers||e.nature)}) ?
         <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small sec" onclick="confirmerDoublon('${o.id}',true)">Oui, c'est elle</button><button class="btn small ghost" onclick="confirmerDoublon('${o.id}',false)">Non</button></span></div>` : ""}
     </div>`; };
   const [tc, ts] = (F.tri || "date").split("-"), th = (col, lib, cls = "") => `<button class="bqth ${cls} ${tc === col ? "on" : ""}" onclick="trierBq('${col}')">${lib}${tc === col ? (ts === "desc" ? " ↓" : " ↑") : ""}</button>`;
   const vide = !vis.length ? `<div class="bqvide">${J.length ? `<b>${S.bqVue === "atraiter" ? "Plus rien à classer avec ces filtres ✓" : "Aucune opération ne correspond aux filtres."}</b><button class="btn small sec" style="margin-top:8px" onclick="viderFiltres()">Retirer les filtres</button>`
-      : S.bqVue === "atraiter" ? `<b>Tout est classé ✓</b>${classes ? `Il reste à valider ${classes} opération${pl(classes)} pour créer les écritures.` : ""}` : `<b>Aucune opération classée pour l'instant.</b>`}</div>` : "";
+      : S.bqVue === "atraiter" ? `<b>Tout est classé ✓</b>Les opérations classées sont déjà dans vos écritures.` : `<b>Aucune opération classée pour l'instant.</b>`}</div>` : "";
   const totVis = r2(vis.reduce((t,o) => t + o.montant, 0));
   const y = S.year, t = totauxEcritures(y), postes = Object.entries(t.parNature).sort((a,b)=>b[1]-a[1]), maxP = Math.max(1, ...postes.map(p=>p[1]));
   const ty = FILTRES.find(f => f.k === S.qType);
   const onglets = tetePage("Banque", segments("bqOnglet", [["operations", "Opérations"], ["regles", "Règles"]], S.bqOnglet || "operations"));
   if(S.bqOnglet === "regles") return onglets + vueRegles();
   return `${onglets}
-  ${tous.length ? `<div class="card">
-    <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser} à classer · ${classes} classée${pl(classes)}, à valider pour créer les écritures</p></div>
-      <div class="row" style="gap:8px"><button class="btn sec small" onclick="importerCSV()">Importer un relevé</button><button class="btn sec" onclick="validerTri()" ${classes ? "" : "disabled"}>${classes ? `Valider ${classes} classée${pl(classes)}` : "Valider"}</button></div></div>
-    ${jauge([[classes,"var(--pos)"]], tous.length, 8)}
+  ${total ? `<div class="card">
+    <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser} à classer · ${classes} classée${pl(classes)} en ${S.year}, déjà passée${pl(classes)} en écritures</p></div>
+      <div class="row" style="gap:8px"><button class="btn sec small" onclick="importerCSV()">Importer un relevé</button></div></div>
+    ${jauge([[classes,"var(--pos)"]], total, 8)}
     <div class="bqtools">
       <div class="fzone noprint">
-        <select aria-label="Opérations affichées" onchange="vueBq(this.value)">${[["atraiter",`À classer (${aClasser})`],["classees",`Classées (${classes})`],["toutes",`Toutes (${tous.length})`]].map(([k,l]) => `<option value="${k}" ${S.bqVue===k?"selected":""}>${l}</option>`).join("")}</select>
+        <select aria-label="Opérations affichées" onchange="vueBq(this.value)">${[["atraiter",`À classer (${aClasser})`],["classees",`Classées en ${S.year} (${classes})`],["toutes",`Toutes (${total})`]].map(([k,l]) => `<option value="${k}" ${S.bqVue===k?"selected":""}>${l}</option>`).join("")}</select>
         <div class="qwrap"><div class="qbar" onclick="if(!event.target.closest('button'))$('#qEcr').focus()">${I_LOUPE}${pastillesFiltres("bq")}${ty ? `<span class="qtype">${esc(ty.lib.replace("…",""))}</span>` : ""}
           <input id="qEcr" type="text" autocomplete="off" spellcheck="false" aria-label="Filtrer" placeholder="${ty ? esc(ty.aide || (ty.liste ? "Chercher…" : "Valeur…")) : "Filtrez par…"}"
             value="${esc(S.qEcr||"")}" onfocus="ouvrirMenu()" oninput="S.qEcr=this.value;S.qSel=0;majMenu()" onkeydown="toucheRecherche(event)" onblur="setTimeout(fermerMenu,120)">
@@ -5609,9 +5650,7 @@ function vueBanque(){
   ${zoneDepot("Déposer un autre relevé", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer · les opérations déjà connues sont écartées", "importerCSV()", "deposerCSV(event)", "petit")}`
     : `${zoneDepot("Déposer le relevé de l'année", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer", "importerCSV()", "deposerCSV(event)")}<div class="vide">✓ Tout est imputé</div>`}
   ${postes.length ? `<div class="card"><h3>Postes ${y}</h3><div class="barresh">${postes.map(([n,v])=>`<div class="bh" role="button" title="Voir ces écritures" onclick="S.vueEcr='journal';S.fEcr=[{t:'nature',v:${jsq(n)}}];S.lignesEcr='';allerA('ecritures')"><span>${libNature(n)}</span><div>${jauge([[v, COUL_GROUPE[NATURES[n]?.g||"charge"]]], maxP, 10)}</div><b>${eur0(v)}</b></div>`).join("")}</div></div>` : ""}
-  ${B.ignorees.length ? `<div class="card"><details><summary>${B.ignorees.length} opération${pl(B.ignorees.length)} hors location</summary><div class="tablewrap" style="margin-top:10px"><table>
-    ${B.ignorees.map((o,i)=>[o,i]).sort((a,b)=>b[0].date.localeCompare(a[0].date)).slice(0,200).map(([o,i])=>`<tr><td>${fmtDate(o.date)}</td><td>${esc(o.libelle)}</td><td class="n">${eur(o.montant)}</td><td class="n"><button class="btn small ghost" onclick="remettreATrier(${i})">Remettre à trier</button></td></tr>`).join("")}
-  </table></div></details></div>` : ""}`;
+`;
 }
 
 /* ---- Clôture guidée et ouverture de l'exercice suivant ---- */
