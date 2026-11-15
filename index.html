@@ -2493,7 +2493,7 @@ function ajouterJetons(js){
 }
 function retirerJeton(i){ S[cleF()] = (S[cleF()] || []).filter((_, k) => k !== i); filtresBqChanges(); renderAll(); }
 function viderFiltres(){ S[cleF()] = []; S.qEcr = ""; S.qType = null; if(S.tab !== "banque"){ S.lignesEcr = ""; S.lignesGL = ""; } filtresBqChanges(); renderAll(); }
-/* Banque : un nouveau filtre repart d'une sélection vide, et les lignes classées entre-temps quittent la vue « À classer » */
+/* Banque : un nouveau filtre repart d'une sélection vide */
 function filtresBqChanges(){ if(S.tab === "banque"){ S.bq.sel.clear(); S.bq.garde.clear(); S.bq.dernier = null; } }
 /* « / » place le curseur dans la barre de filtres */
 document.addEventListener("keydown", ev => {
@@ -5322,7 +5322,7 @@ function passeFiltreBq(o, J){
 /* Opérations affichées : vue (à classer, classées, toutes), filtres, puis tri par colonne */
 function opsVisibles(){
   const F = S.bq, v = S.bqVue, J = S.fBq || [];
-  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature || F.garde.has(o.id))) && passeFiltreBq(o, J));
+  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature)) && passeFiltreBq(o, J));
   const [col, sens] = (F.tri || "date").split("-"), k = sens === "desc" ? -1 : 1;
   const cmp = {date:(a,b) => a.date.localeCompare(b.date), libelle:(a,b) => norm(a.libelle).localeCompare(norm(b.libelle)) || a.date.localeCompare(b.date),
     montant:(a,b) => a.montant - b.montant || a.date.localeCompare(b.date), nature:(a,b) => libNatOp(a.nature).localeCompare(libNatOp(b.nature)) || a.date.localeCompare(b.date)}[col];
@@ -5453,7 +5453,7 @@ function vueBanque(){
         <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small sec" onclick="confirmerDoublon('${o.id}',true)">Oui, c'est elle</button><button class="btn small ghost" onclick="confirmerDoublon('${o.id}',false)">Non</button></span></div>` : ""}
     </div>`; };
   const [tc, ts] = (F.tri || "date").split("-"), th = (col, lib, cls = "") => `<button class="bqth ${cls} ${tc === col ? "on" : ""}" onclick="trierBq('${col}')">${lib}${tc === col ? (ts === "desc" ? " ↓" : " ↑") : ""}</button>`;
-  const vide = !vis.length ? `<div class="bqvide">${J.length ? `<b>Aucune opération ne correspond aux filtres.</b><button class="btn small sec" style="margin-top:8px" onclick="viderFiltres()">Retirer les filtres</button>`
+  const vide = !vis.length ? `<div class="bqvide">${J.length ? `<b>${S.bqVue === "atraiter" ? "Plus rien à classer avec ces filtres ✓" : "Aucune opération ne correspond aux filtres."}</b><button class="btn small sec" style="margin-top:8px" onclick="viderFiltres()">Retirer les filtres</button>`
       : S.bqVue === "atraiter" ? `<b>Tout est classé ✓</b>${classes ? `Il reste à valider ${classes} opération${pl(classes)} pour créer les écritures.` : ""}` : `<b>Aucune opération classée pour l'instant.</b>`}</div>` : "";
   const totVis = r2(vis.reduce((t,o) => t + o.montant, 0));
   const y = S.year, t = totauxEcritures(y), postes = Object.entries(t.parNature).sort((a,b)=>b[1]-a[1]), maxP = Math.max(1, ...postes.map(p=>p[1]));
