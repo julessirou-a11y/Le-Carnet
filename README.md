@@ -3,7 +3,7 @@
 Petit outil web pour tenir la comptabilité d'une location meublée non professionnelle (LMNP) au régime réel simplifié :
 
 - saisie des recettes et dépenses, avec des filtres à cumuler façon Inqom (compte, dates, période, journal, libellé, montant, pointage, nature, tiers, justificatif), aussi en grand livre, et enregistrables sous un nom ;
-- import du relevé bancaire CSV, avec tri des opérations, règles mémorisées par mot-clé et détection des doublons ;
+- import du relevé bancaire CSV, puis tri des opérations avec les mêmes filtres que les écritures (« Filtrez par… »), sélection multiple (Maj + clic, Cmd + clic, tout cocher) et bouton « Classer » pour plusieurs opérations à la fois, règles mémorisées par mot-clé et détection des doublons ;
 - une seule zone de dépôt pour les pièces : PDF, photos, échéanciers et factures électroniques de la plateforme agréée (Factur-X, UBL, CII, ZIP), lues et rattachées automatiquement au paiement de même montant ;
 - amortissements par composant (logement hors terrain, travaux, mobilier) ;
 - emprunt : seules les écritures bancaires (intérêts, capital, assurance) sont comptabilisées ; l'échéancier de la page Emprunt indique pour chaque échéance passée si elle est rapprochée (vert), en partie (jaune) ou sans écriture ou avec écart (rouge). Un seul échéancier : celui saisi d'après les caractéristiques du prêt, remplacé par celui de la banque dès que son PDF est déposé (lu dans le navigateur, rattaché d'office comme justificatif aux écritures d'emprunt) ;
