@@ -1339,6 +1339,15 @@ function pretDe(e){
   const t = (e.tiers || "").toLowerCase(), b = L.filter(l => l.banque && t.includes(l.banque.toLowerCase()));
   return b.length === 1 ? b[0].id : null;
 }
+/* Date à laquelle la banque verse les fonds : celle du contrat si elle est saisie, sinon un mois avant la 1re échéance */
+function dateDeblocage(l){
+  if(l.dateDeblocage) return l.dateDeblocage;
+  const y = yearOf(l.premiereEcheance), m = monthOf(l.premiereEcheance);
+  return m > 1 ? `${y}-${String(m-1).padStart(2,"0")}-${l.premiereEcheance.slice(8,10)}` : `${y-1}-12-${l.premiereEcheance.slice(8,10)}`;
+}
+/* Prêts débloqués pendant un exercice suivi dans le Carnet : leur capital entre au crédit du 164 cette année-là */
+const pretsDebloques = y => S.data.emprunts.filter(l => l.capital > 0 && l.premiereEcheance && yearOf(dateDeblocage(l)) === y);
+const capitalDebloque = y => r2(pretsDebloques(y).reduce((s,l) => s + l.capital, 0));
 /* Intérêts comptabilisés d'un prêt sur l'exercice */
 const interetsPret = (l, y) => r2((exercice(y)?.ecritures||[]).filter(e => e.nature === "Intérêts emprunt" && pretDe(e) === l.id).reduce((s,e) => s + e.montant, 0));
 const nomPret = (l, idx) => l.banque ? `${l.banque}${S.data.emprunts.filter(x => x.banque === l.banque).length > 1 ? ` (${eur0(l.capital)})` : ""}` : `Prêt ${idx+1}`;
@@ -1355,7 +1364,7 @@ function empruntAnnee(l, y){
   const inY = rows.filter(r => r.annee === y);
   const before = rows.filter(r => r.annee <= y);
   return {interets: inY.reduce((s,r)=>s+r.interet,0), capital: inY.reduce((s,r)=>s+r.capital,0),
-          crdFin: before.length ? before[before.length-1].crd : (yearOf(l.premiereEcheance) > y ? 0 : l.capital), demarre: yearOf(l.premiereEcheance) <= y};
+          crdFin: before.length ? before[before.length-1].crd : (yearOf(dateDeblocage(l)) > y ? 0 : l.capital), demarre: yearOf(l.premiereEcheance) <= y};
 }
 
 /* ============ Calculs : exercice ============ */
@@ -2831,11 +2840,11 @@ function editionEcheancier(l, idx){
 function carteContrat(l, idx){
   const edit = S.editPret === l.id || !l.capital, banque = !!lignesBanque(l), eb = l.echeancierBanque;
   const taux = (l.tauxAnnuel*100).toLocaleString("fr-FR",{maximumFractionDigits:3}) + " %";
-  const fiche = [["Banque", esc(l.banque)||"–"], ["Capital emprunté", eur(l.capital)], ["Taux annuel", taux], ["Durée", `${l.dureeMois} mois`], ["1re échéance", fmtDate(l.premiereEcheance)], ["Mensualité hors assurance", l.mensualite ? eur(l.mensualite) : "calculée"], l.assurance > 0 && ["Assurance mensuelle", eur(l.assurance)]].filter(Boolean);
+  const fiche = [["Banque", esc(l.banque)||"–"], ["Capital emprunté", eur(l.capital)], ["Taux annuel", taux], ["Durée", `${l.dureeMois} mois`], ["1re échéance", fmtDate(l.premiereEcheance)], ["Déblocage", fmtDate(dateDeblocage(l)) + (l.dateDeblocage ? "" : " (estimé)")], ["Mensualité hors assurance", l.mensualite ? eur(l.mensualite) : "calculée"], l.assurance > 0 && ["Assurance mensuelle", eur(l.assurance)]].filter(Boolean);
   const champ = (lib, k, v, type = "text") => `<label>${lib}<input data-k="${k}" ${type === "num" ? 'inputmode="decimal"' : `type="${type}"`} value="${v}"></label>`;
   const caract = edit ? `<div class="form" id="contrat${idx}">
       ${champ("Banque", "banque", esc(l.banque))}${champ("Capital emprunté", "capital", l.capital, "num")}${champ("Taux annuel (%)", "taux", r2(l.tauxAnnuel*10000)/100, "num")}
-      ${champ("Durée (mois)", "dureeMois", l.dureeMois, "number")}${champ("1re échéance", "premiereEcheance", l.premiereEcheance, "date")}${champ("Mensualité hors assurance", "mensualite", l.mensualite, "num")}${champ("Assurance mensuelle (facultatif)", "assurance", l.assurance||"", "num")}
+      ${champ("Durée (mois)", "dureeMois", l.dureeMois, "number")}${champ("1re échéance", "premiereEcheance", l.premiereEcheance, "date")}${champ("Mensualité hors assurance", "mensualite", l.mensualite, "num")}${champ("Assurance mensuelle (facultatif)", "assurance", l.assurance||"", "num")}${champ("Déblocage des fonds (facultatif)", "dateDeblocage", l.dateDeblocage||"", "date")}
     </div>${editionEcheancier(l, idx)}<div class="row" style="justify-content:flex-end;margin-top:14px">${l.capital ? `<button class="btn small sec" onclick="S.editPret=null;renderAll()">Annuler</button>` : ""}<button class="btn small" onclick="validerContrat(${idx})">Valider</button></div>`
     : `<div class="fiche">${fiche.map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}${tuileEcheancier(l)}</div>`;
   const crayon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>`;
@@ -2932,7 +2941,8 @@ function repartirRpMain(){
 /* Les caractéristiques ne changent qu'à la validation de l'édition */
 function validerContrat(idx){
   const l = S.data.emprunts[idx], v = k => $(`#contrat${idx} [data-k="${k}"]`).value.trim();
-  const n = {banque:v("banque"), capital:parseMontant(v("capital")), tauxAnnuel:parseMontant(v("taux"))/100, dureeMois:parseInt(v("dureeMois"),10), premiereEcheance:v("premiereEcheance"), mensualite:parseMontant(v("mensualite"))||0, assurance:r2(parseMontant(v("assurance"))||0)};
+  const n = {banque:v("banque"), capital:parseMontant(v("capital")), tauxAnnuel:parseMontant(v("taux"))/100, dureeMois:parseInt(v("dureeMois"),10), premiereEcheance:v("premiereEcheance"), mensualite:parseMontant(v("mensualite"))||0, assurance:r2(parseMontant(v("assurance"))||0), dateDeblocage:v("dateDeblocage")};
+  if(!n.dateDeblocage) delete n.dateDeblocage, delete l.dateDeblocage;
   if(!(n.capital > 0) || !(n.dureeMois > 0) || !n.premiereEcheance || isNaN(n.tauxAnnuel)) return avertir("Renseignez au moins le capital, le taux, la durée et la 1re échéance.");
   Object.assign(l, n); S.editPret = null; setDirty(); renderAll(); toast("Contrat de prêt mis à jour.");
 }
@@ -3520,6 +3530,8 @@ function ecrituresComptables(y){
   const dot = {};
   c.immos.forEach(x => { if(x.entree <= y && x.a.dotation > 0){ const k = (CPT_IMMO[x.i.categorie] || CPT_IMMO.travaux).am; dot[k] = (dot[k]||0) + x.a.dotation; } });
   Object.entries(dot).forEach(([k,v]) => add("OD", fin, "Dotation aux amortissements " + y, [{c:"681120", d:r2(v)}, {c:k, cr:r2(v)}]));
+  // Déblocage d'un prêt dans l'année : les fonds servent à l'achat (prix, travaux), d'où la contrepartie au compte de l'exploitant comme pour les immobilisations
+  pretsDebloques(y).forEach(l => add("OD", dateDeblocage(l), `Déblocage du prêt ${l.banque || ""}`.trim(), [{c:"108000", d:r2(l.capital)}, {c:"164000", cr:r2(l.capital)}]));
   // Régularisation du restant dû saisie dans le dossier (page Emprunt) : écart entre le 164 et l'échéancier de la banque
   const rg = regulCRD(y);
   if(rg) add("OD", fin, "Régularisation du capital restant dû selon l'échéancier" + (exercice(y).regulCRD.motif ? " - " + exercice(y).regulCRD.motif : ""), rg > 0 ? [{c:"108000", d:rg}, {c:"164000", cr:rg}] : [{c:"164000", d:-rg}, {c:"108000", cr:-rg}]);
@@ -3532,7 +3544,7 @@ function soldeGL164(y){
   const ex = exercice(y);
   if(!ex || ex.statut === "historique" || (ex.statut === "cloture" && ex.cloture?.crdFin != null)) return crdAu31(y);
   const rembourse = (ex.ecritures||[]).filter(e => e.nature === "Remboursement emprunt").reduce((s,e) => s + e.montant, 0);
-  return r2(soldeGL164(y-1) - rembourse + regulCRD(y));
+  return r2(soldeGL164(y-1) - rembourse + capitalDebloque(y) + regulCRD(y));
 }
 /* Écart à expliquer : restant dû de l'échéancier de la banque moins le solde du 164 au 31/12 (le bilan reprend le 164) */
 function ecartCRD(y){
