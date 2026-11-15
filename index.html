@@ -1456,10 +1456,28 @@ const via404 = i => { const y = yearOf(i.miseEnService); return y >= depuis404()
 const regul404 = y => r2(Number(exercice(y)?.regul404?.montant) || 0);
 /* Prêt débloqué en y : la part non reçue sur le compte (« Versement d'un prêt ») est censée payer directement le vendeur */
 const pretDirect404 = y => y < depuis404() ? 0 : r2(Math.max(0, capitalDebloque(y) - sommeNature(y, "Versement d'un prêt")));
+/* Paiements « Achat d'immobilisation » rattachés à un bien acquis la même année : imputés directement au compte du bien, jusqu'à sa valeur ;
+   renvoie pour chaque écriture la part imputée au bien (le reste, et les paiements non rattachés, vont au 404) */
+function paiementsImmo(y){
+  const part = {}, paye = {};
+  if(y < depuis404() || !exercice(y)) return {part, paye};
+  [...(exercice(y).ecritures||[])].filter(e => e.nature === "Achat d'immobilisation" && e.immo).sort((a,b) => a.date.localeCompare(b.date)).forEach(e => {
+    const i = S.data.immobilisations.find(x => x.id === e.immo); if(!i || !via404(i) || yearOf(i.miseEnService) !== y) return;
+    const m = r2(Math.min(e.montant, i.valeurOrigine - (paye[i.id] || 0))); if(m <= 0) return;
+    part[e.id] = m; paye[i.id] = r2((paye[i.id] || 0) + m);
+  });
+  return {part, paye};
+}
+/* Lignes de débit d'un montant imputé à un bien : part de terrain au 211, le reste au compte du bien */
+function lignesBien(i, m){
+  const k = CPT_IMMO[i.categorie] || CPT_IMMO.travaux, t = i.valeurOrigine > 0 ? r2(m * (i.valeurOrigine - baseAmort(i)) / i.valeurOrigine) : 0;
+  return [...(t > 0 ? [{c:"211000", d:t}] : []), {c:k.brut, d:r2(m - t)}];
+}
 function mouvements404(y){
   if(y < depuis404() || !exercice(y) || isHistorique(y)) return {biens:0, achats:0, pret:0, perso:0};
-  return {biens:r2(S.data.immobilisations.filter(i => via404(i) && yearOf(i.miseEnService) === y).reduce((s,i) => s + i.valeurOrigine, 0)),
-    achats:sommeNature(y, "Achat d'immobilisation"), pret:pretDirect404(y), perso:regul404(y)};
+  const {part, paye} = paiementsImmo(y), lies = r2(Object.values(part).reduce((s,x) => s + x, 0));
+  return {biens:r2(S.data.immobilisations.filter(i => via404(i) && yearOf(i.miseEnService) === y).reduce((s,i) => s + i.valeurOrigine - (paye[i.id] || 0), 0)),
+    achats:r2(sommeNature(y, "Achat d'immobilisation") - lies), pret:pretDirect404(y), perso:regul404(y)};
 }
 /* Solde créditeur du 404 au 31/12 (positif : biens saisis pas encore payés ; négatif : payé sans bien saisi) */
 function solde404(y){
@@ -2723,6 +2741,7 @@ function saveEcriture(){
   e.sens = entreeNature(e.nature) ? "recette" : "depense";
   if(!e.commentaire) delete e.commentaire;
   const pr = NAT_PRET[e.nature] && $("#ePret")?.value; if(pr) e.pret = pr;
+  if(x0 && $("#eImmo")){ const im = e.nature === "Achat d'immobilisation" && $("#eImmo").value; if(im) e.immo = im; else delete x0.immo; }
   if(S.editId){ const x = ex.ecritures.find(x=>x.id===S.editId); if(!pr) delete x.pret; }
   if(S.editId){ Object.assign(ex.ecritures.find(x=>x.id===S.editId), e); S.editId = null; }
   else ex.ecritures.push({id:uid(), ...e});
@@ -2743,8 +2762,10 @@ function ouvrirEcriture(id){
       <label class="bqcl-l">Date${bq ? ` <small>(du relevé)</small>` : ""}<input type="date" id="eDate" value="${ed.date}" ${bq ? "disabled" : ""}></label>
       <label class="bqcl-l">Montant TTC${bq ? ` <small>(du relevé)</small>` : ""}<input id="eMont" inputmode="decimal" value="${String(ed.montant).replace(".", ",")}" ${bq ? "disabled" : ""}></label>
     </div>
-    <label class="bqcl-l">Nature<select id="eNat" onchange="$('#ePretL')?.toggleAttribute('hidden', !NAT_PRET[this.value])">${nats.map(n => optNature(n, ed.nature)).join("")}</select></label>
+    <label class="bqcl-l">Nature<select id="eNat" onchange="$('#ePretL')?.toggleAttribute('hidden', !NAT_PRET[this.value]);$('#eImmoL')?.toggleAttribute('hidden', this.value !== 'Achat d\'immobilisation')">${nats.map(n => optNature(n, ed.nature)).join("")}</select></label>
     ${S.data.emprunts.length > 1 ? `<label class="bqcl-l" id="ePretL" ${NAT_PRET[ed.nature] ? "" : "hidden"}>Prêt<select id="ePret"><option value="">Selon le montant de l'échéance</option>${S.data.emprunts.map((l,i) => `<option value="${l.id}" ${ed.pret === l.id ? "selected" : ""}>${esc(nomPret(l,i))}</option>`).join("")}</select></label>` : ""}
+    ${(() => { const L = S.data.immobilisations.filter(i => via404(i) && yearOf(i.miseEnService) === y); if(!L.length && !ed.immo) return "";
+      return `<label class="bqcl-l" id="eImmoL" ${ed.nature === "Achat d'immobilisation" ? "" : "hidden"}>Bien payé<select id="eImmo"><option value="">Non rattaché (reste au compte 404)</option>${L.map(i => `<option value="${i.id}" ${ed.immo === i.id ? "selected" : ""}>${esc(i.libelle)} · ${eur(i.valeurOrigine)}</option>`).join("")}</select></label>`; })()}
     <label class="bqcl-l">Tiers<input id="eTiers" list="tiersDlg" value="${esc(ed.tiers || "")}" autocomplete="off"></label>
     <label class="bqcl-l">Commentaire <small>(facultatif)</small><input id="eCom" value="${esc(ed.commentaire || "")}" autocomplete="off"></label>
     <datalist id="tiersDlg">${[...new Set(ex.ecritures.map(e => e.tiers).filter(Boolean))].map(t => `<option value="${esc(t)}">`).join("")}</datalist>
@@ -3695,11 +3716,13 @@ function ecrituresComptables(y){
   add("AN", debut, "À-nouveaux au 1er janvier", an);
   const rgDep = regulDepots(y);
   if(rgDep) add("OD", debut, "Dépôts de garantie détenus au 1er janvier" + (exercice(y).regulDepots.motif ? " - " + exercice(y).regulDepots.motif : ""), rgDep > 0 ? [{c:"108000", d:rgDep}, {c:"165000", cr:rgDep}] : [{c:"165000", d:-rgDep}, {c:"108000", cr:-rgDep}]);
-  // Mouvements de banque saisis
+  // Mouvements de banque saisis ; un paiement rattaché à un bien de l'année va au compte du bien
+  const pImmo = paiementsImmo(y);
   [...(exercice(y).ecritures||[])].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => {
     const k = e.nature === "Achat d'immobilisation" && y >= depuis404() ? "404000" : compteNature(e.nature), m = r2(e.montant), lib = [e.tiers, e.nature].filter(Boolean).join(" - ");
-    const recette = estEntree(e);
-    add("BQ", e.date, lib, recette ? [{c:"512000", d:m}, {c:k, cr:m}] : [{c:k, d:m}, {c:"512000", cr:m}], e.piece ? e.piece.split("/").pop() : e.id, e);
+    const recette = estEntree(e), bien = pImmo.part[e.id] ? S.data.immobilisations.find(x => x.id === e.immo) : null;
+    const debit = bien ? [...lignesBien(bien, pImmo.part[e.id]), {c:k, d:r2(m - pImmo.part[e.id])}] : [{c:k, d:m}];
+    add("BQ", e.date, bien ? `${lib} - ${bien.libelle}` : lib, recette ? [{c:"512000", d:m}, {c:k, cr:m}] : [...debit, {c:"512000", cr:m}], e.piece ? e.piece.split("/").pop() : e.id, e);
   });
   // Dotations aux amortissements, par catégorie
   const dot = {};
@@ -3708,8 +3731,8 @@ function ecrituresComptables(y){
   // Déblocage d'un prêt dans l'année : les fonds servent à l'achat (prix, travaux), d'où la contrepartie au compte de l'exploitant comme pour les immobilisations
   // Biens acquis dans l'année : dus au fournisseur (404) jusqu'à leur paiement
   S.data.immobilisations.filter(i => via404(i) && yearOf(i.miseEnService) === y).forEach(i => {
-    const k = CPT_IMMO[i.categorie] || CPT_IMMO.travaux, terrain = r2(i.valeurOrigine - baseAmort(i));
-    add("OD", i.miseEnService, `Acquisition - ${i.libelle || i.nom || "immobilisation"}`, [...(terrain > 0 ? [{c:"211000", d:terrain}] : []), {c:k.brut, d:r2(baseAmort(i))}, {c:"404000", cr:r2(i.valeurOrigine)}]);
+    const reste = r2(i.valeurOrigine - (pImmo.paye[i.id] || 0)); if(reste <= 0) return; // entièrement payé par des paiements rattachés
+    add("OD", i.miseEnService, `Acquisition - ${i.libelle || "immobilisation"}${reste < i.valeurOrigine ? " (part non rattachée à un paiement)" : ""}`, [...lignesBien(i, reste), {c:"404000", cr:reste}]);
   });
   // Déblocage d'un prêt : la part reçue sur le compte passe par le compte de l'exploitant (« Versement d'un prêt »), le reste a payé directement le vendeur (404)
   let direct = pretDirect404(y);
@@ -4003,9 +4026,8 @@ function controles(y){
   // Compte 404 : les biens acquis dans l'année doivent être payés (banque, prêt versé au vendeur ou fonds personnels), et chaque paiement correspondre à un bien saisi
   const m4 = mouvements404(y), s4 = solde404(y);
   if(m4.biens || m4.achats || m4.perso || Math.abs(s4) >= 0.005) chk("compte-404", "immos", Math.abs(s4) < 0.005,
-    `Compte fournisseurs d'immobilisations (404) soldé : les biens acquis sont payés${m4.perso ? `, dont ${eur(m4.perso)} avec vos fonds personnels` : ""}.${m4.perso && !verrouille(y) ? ` <button class="lien-b" onclick="regulariser404(${y})">Modifier</button>` : ""}`, "warn",
-    s4 > 0 ? `${eur(s4)} de biens saisis sur la page Immobilisations ne sont pas payés depuis ce compte (404 non soldé) : classez le paiement en « Achat d'immobilisation » dans Banque, vérifiez le déblocage du prêt, ou indiquez qu'ils ont été payés avec vos fonds personnels.`
-      : `${eur(-s4)} payés en « Achat d'immobilisation » sans bien correspondant (404 débiteur) : ajoutez le bien sur la page Immobilisations, sinon il n'est ni au bilan ni amorti.`, s4 > 0 ? null : "immos");
+    `Biens de l'année payés (compte 404 soldé)${m4.perso ? `, dont ${eur(m4.perso)} avec vos fonds personnels` : ""}.${m4.perso && !verrouille(y) ? ` <button class="lien-b" onclick="regulariser404(${y})">Modifier</button>` : ""}`, "warn",
+    s4 > 0 ? `${eur(s4)} de biens sans paiement rattaché (compte 404).` : `${eur(-s4)} payés en « Achat d'immobilisation » sans bien rattaché (compte 404).`, s4 > 0 ? null : "immos");
   const verse = r2(es.filter(e => e.nature === "Versement d'un prêt").reduce((s,e) => s + e.montant, 0)), debloque = capitalDebloque(y);
   if(verse) chk("versement-pret", "emprunt", !verse || Math.abs(verse - debloque) < 0.005, `Versement du prêt sur le compte (${eur(verse)}) conforme au capital débloqué.`, "warn",
     debloque ? `${eur(verse)} reçus en « Versement d'un prêt », pour ${eur(debloque)} de capital débloqué en ${y} selon les contrats : vérifiez le montant ou la date de déblocage (page Emprunt). Une partie peut avoir été versée directement au notaire ou à l'entreprise.`
@@ -4343,7 +4365,7 @@ function fenetreCycle(y, c){
     if(x.extra === "releve") return `<div class="row rv-rel"><label>Solde du relevé au 1/1<input inputmode="decimal" value="${ex.releve?.debut ?? ""}" onchange="majReleve(${y},'debut',this.value)"></label><label>au 31/12<input inputmode="decimal" value="${ex.releve?.fin ?? ""}" onchange="majReleve(${y},'fin',this.value)"></label>
       <button class="btn small ${r.statut === "na" ? "" : "sec"}" onclick="majRevision(${y},'releve',{statut:${r.statut === "na" ? "null" : "'na'"}})">Pas de relevé disponible</button></div>`;
     if(x.id === "acquisitions") return `<button class="btn small ${r.statut === "vu" ? "" : "sec"}" onclick="majRevision(${y},'acquisitions',{statut:${r.statut === "vu" ? "null" : "'vu'"}})">Factures vérifiées</button>`;
-    if(x.id === "compte-404") return solde404(y) > 0 ? `<button class="btn small" onclick="S.revPoste=null;allerA('banque')">Classer le paiement</button><button class="btn small sec" onclick="regulariser404(${y})">Payé avec mes fonds personnels…</button>` : `<button class="btn small" onclick="S.revPoste=null;allerA('immos')">Ajouter le bien</button>`;
+    if(x.id === "compte-404") return solde404(y) > 0 ? `<button class="btn small" onclick="S.revPoste=null;S.vueEcr='journal';S.fEcr=[{t:'nature',v:${jsq("Achat d'immobilisation")}}];allerA('ecritures')">Rattacher les paiements</button><button class="btn small sec" onclick="regulariser404(${y})">Payé avec mes fonds personnels…</button>` : `<button class="btn small" onclick="S.revPoste=null;S.vueEcr='journal';S.fEcr=[{t:'nature',v:${jsq("Achat d'immobilisation")}}];allerA('ecritures')">Rattacher à un bien</button><button class="btn small sec" onclick="S.revPoste=null;allerA('immos')">Ajouter le bien</button>`;
     if(x.id === "depots") return `<button class="btn small" onclick="regulariserDepots(${y})">Dépôts détenus au 1er janvier…</button>`;
     if(x.id === "crd") return `<button class="btn small" onclick="S.revPoste=null;allerA('emprunt')">Rapprocher les échéances</button><button class="btn small sec" onclick="S.year=${y};regulariserCRD()">Régulariser l'écart…</button>`;
     if(x.attendu == null && x.page === "dossier") return `<button class="btn small" onclick="S.revPoste=null;allerA('dossier')">Renseigner le bail</button>`;
