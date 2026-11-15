@@ -5760,7 +5760,6 @@ function vueBanque(){
     </div>
     <div class="bqsel" id="bqSelInfo">${infoSelection()}</div>
     <div class="bqlist">${vis.length ? `<div class="bqr th"><input type="checkbox" id="bqTout" aria-label="Tout sélectionner" title="Tout sélectionner (Cmd + A)" ${nSel && nSel === vis.length ? "checked" : ""} onclick="selTout(this.checked)">${th("date","Date")}${th("libelle","Libellé du relevé")}${th("montant","Montant","bqm")}${th("nature","Nature")}<span></span></div>` : ""}${vis.map(ligneOp).join("") || vide}</div>
-    ${vis.length > 1 ? `<p class="bqaide">Astuce : Maj + clic sélectionne une plage, Cmd + clic ajoute ou retire une opération, Cmd + A sélectionne tout ce qui est affiché.</p>` : ""}
   </div>
   ${zoneDepot("Déposer un autre relevé", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer · les opérations déjà connues sont écartées", "importerCSV()", "deposerCSV(event)", "petit")}`
     : `${zoneDepot("Déposer le relevé de l'année", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer", "importerCSV()", "deposerCSV(event)")}<div class="vide">✓ Tout est imputé</div>`}
