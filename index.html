@@ -524,7 +524,7 @@ tr.ejx-masq button:hover{text-decoration:underline}
 .ejx-rep:hover{background:var(--surface-2);color:var(--text)}
 .ejx-pill{text-transform:capitalize}
 .ejx-som{display:flex;gap:14px;font-size:13px;color:var(--muted);white-space:nowrap}
-.ejx-som b{font-weight:600;color:var(--text)} .ejx-som .in b{color:var(--pos)}
+.ejx-som b{font-weight:600;color:var(--text)} 
 td.d .jr{font-weight:600;color:var(--text)} td.d .mo{color:var(--faint);font-size:12px;margin-left:3px}
 .ejx-op{display:flex;align-items:center;gap:11px;min-width:0}
 .ejx-ic{flex:none;width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--muted)}
@@ -2470,7 +2470,7 @@ function finBarre(vue){
   const J = S.fEcr || [], lg = S[vue === "journal" ? "lignesEcr" : "lignesGL"] || "";
   if(!J.length && !lg) return "";
   const nb = S.nbFiltre ?? 0, quoi = vue === "gl" ? "ligne" : vue === "balance" ? "compte" : "écriture";
-  return `<span class="qfin"><span class="qnb">${nb} ${quoi}${nb > 1 ? "s" : ""}</span>
+  return `<span class="qfin">
     <button class="qact" title="Retirer tous les filtres" aria-label="Retirer tous les filtres" onclick="event.stopPropagation();viderFiltres()">×</button></span>`;
 }
 function ouvrirMenu(){ S.qOuvert = true; S.qSel ??= 0; majMenu(); }
@@ -5637,7 +5637,7 @@ function vueBanque(){
         <div class="qwrap"><div class="qbar" onclick="if(!event.target.closest('button'))$('#qEcr').focus()">${I_LOUPE}${pastillesFiltres("bq")}${ty ? `<span class="qtype">${esc(ty.lib.replace("…",""))}</span>` : ""}
           <input id="qEcr" type="text" autocomplete="off" spellcheck="false" aria-label="Filtrer" placeholder="${ty ? esc(ty.aide || (ty.liste ? "Chercher…" : "Valeur…")) : "Filtrez par…"}"
             value="${esc(S.qEcr||"")}" onfocus="ouvrirMenu()" oninput="S.qEcr=this.value;S.qSel=0;majMenu()" onkeydown="toucheRecherche(event)" onblur="setTimeout(fermerMenu,120)">
-          ${J.length ? `<span class="qfin"><span class="qnb">${vis.length} opération${pl(vis.length)} · ${signeEur(totVis)}</span><button class="qact" title="Retirer tous les filtres" aria-label="Retirer tous les filtres" onclick="event.stopPropagation();viderFiltres()">×</button></span>` : ""}
+          ${J.length ? `<span class="qfin"><button class="qact" title="Retirer tous les filtres" aria-label="Retirer tous les filtres" onclick="event.stopPropagation();viderFiltres()">×</button></span>` : ""}
         </div><div id="qMenu" class="qmenu hide" role="listbox"></div></div>
       </div>
       ${nSel ? `<button class="btn sec" style="height:40px;flex:none" onclick="ouvrirRegle({op:opsSel()[0], modeles:opsSel()})">Nouvelle règle…</button>` : ""}
