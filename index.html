@@ -961,9 +961,24 @@ dialog.bqcl .bqcl-s{margin:-4px 0 16px;color:var(--muted);overflow-wrap:anywhere
 dialog.bqcl .bqcl-c>input{width:18px;height:18px;margin:3px 0 0;padding:0;flex:none;accent-color:var(--accent)}
 dialog.bqcl .bqcl-c span input{display:inline-block;width:auto;max-width:100%;margin:0 0 0 2px;padding:1px 7px;font-size:13.5px;font-weight:600;border-radius:6px}
 .bqcl-n{font-size:13px} dialog.bqcl .row{align-items:center}
+/* Fenêtre Nouvelle règle : aperçu de l'opération */
+.bqap{margin:-2px 0 16px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
+.bqap-t{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.bqap-o{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;font-size:14px}
+.bqap-l{overflow-wrap:anywhere} .bqap-l mark{background:var(--accent-soft);color:var(--text);border-radius:3px;padding:0 2px;font-weight:600}
+.bqap-0{display:block;color:var(--muted);font-size:13px}
+.bqap-x{display:block;margin-top:6px;font-size:12.5px;color:var(--neg)}
+.bqrg-2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.bqrg-n{font-size:13px;color:var(--muted);margin:2px 0 14px} .bqrg-n.err{color:var(--neg)}
+dialog.bqrg select:disabled{opacity:1;color:var(--muted)}
+/* Onglet Règles */
+.bqr.bqrr{grid-template-columns:minmax(0,1.3fr) 120px minmax(0,1.3fr) minmax(0,1fr) 110px 76px;cursor:pointer}
+.bqr.bqrr.th{cursor:default;font-size:12px;color:var(--muted)}
+.bqrr .bql b{overflow-wrap:anywhere} .bqrr-s,.bqrr-t,.bqrr-c{font-size:13.5px;color:var(--muted)} .bqrr-a{display:flex;gap:2px;justify-content:flex-end}
 @media (max-width:760px){
   .bqtools{flex-direction:column;align-items:stretch} .bqtools .fzone{flex-direction:column;min-width:0} .bqtools .fzone>select{width:100%}
   .bqr{grid-template-columns:22px minmax(0,1fr) auto;gap:6px 10px;padding:10px 10px 10px 12px}
+  .bqr.bqrr{grid-template-columns:minmax(0,1fr) auto} .bqr.bqrr.th{display:none} .bqrr-s,.bqrr-c{display:none} .bqrg-2{grid-template-columns:1fr}
   .bqr:not(.th){align-items:start} .bqr:not(.th)>input[type=checkbox]{margin-top:22px} .bqr .bqm{padding-top:19px}
   .bqr .bqd{display:none} .bql::before{content:attr(data-d);font-size:12px;color:var(--faint)}
   .bqr .bqn{grid-column:2/3;align-self:center} .bqr .bqb{grid-column:3}
@@ -1166,14 +1181,17 @@ const NATURES = {
   /* Mouvements de trésorerie sans effet sur le résultat : le bien acheté ou le prêt figurent déjà au bilan (pages Immobilisations et Emprunt),
      la contrepartie va au compte de l'exploitant, qui avait apporté le bien (à-nouveaux) ou reçu le prêt (déblocage) */
   "Achat d'immobilisation":{g:"bilan",l:"",c:"108000"},
-  "Versement d'un prêt":{g:"bilan",l:"",c:"108000",piece:false,entree:true}
+  "Versement d'un prêt":{g:"bilan",l:"",c:"108000",piece:false,entree:true},
+  /* Dépôt de garantie : une dette envers le locataire (compte 165), à lui rendre au départ ; ni recette ni charge */
+  "Dépôt de garantie reçu":{g:"bilan",l:"",c:"165000",piece:false,entree:true},
+  "Dépôt de garantie rendu":{g:"bilan",l:"",c:"165000",piece:false}
 };
 /* Encaissement (recette, ou versement d'un prêt) ou décaissement */
 const entreeNature = n => NATURES[n]?.g === "recette" || !!NATURES[n]?.entree;
 const estEntree = e => NATURES[e.nature] ? entreeNature(e.nature) : e.sens === "recette";
 /* Plan comptable général : libellés des comptes utilisés (natures, immobilisations, export FEC) */
 const COMPTES = {
-  "108000":"Compte de l'exploitant", "164000":"Emprunts auprès des établissements de crédit",
+  "108000":"Compte de l'exploitant", "164000":"Emprunts auprès des établissements de crédit", "165000":"Dépôts et cautionnements reçus",
   "211000":"Terrains", "213000":"Constructions", "213500":"Installations générales, agencements des constructions", "218400":"Mobilier",
   "281300":"Amortissements des constructions", "281350":"Amortissements des installations et agencements", "281840":"Amortissements du mobilier",
   "512000":"Banque", "606110":"Eau", "606120":"Électricité, gaz", "606300":"Fournitures d'entretien et de petit équipement",
@@ -1416,6 +1434,13 @@ function totauxEcritures(y){
   });
   return t;
 }
+/* Dépôts de garantie encore dus aux locataires au 31/12 (compte 165) : reçus moins rendus, sur toutes les années saisies */
+function depotsAu31(y){
+  let s = 0;
+  for(const [k, ex] of Object.entries(S.data.exercices)) if(+k <= y && ex.statut !== "historique") (ex.ecritures||[]).forEach(e => {
+    if(e.nature === "Dépôt de garantie reçu") s += e.montant; else if(e.nature === "Dépôt de garantie rendu") s -= e.montant; });
+  return r2(s);
+}
 function calculAnnee(y){
   const t = totauxEcritures(y);
   const lmnpActif = y >= yearOf(debutLMNP());
@@ -1432,7 +1457,7 @@ function calculAnnee(y){
   const resultatAvantAmort = produits - t.c242 - t.c244 - interets;
   const resultatComptable = resultatAvantAmort - dotations;
   return {y, t, lmnpActif, produits, c242:t.c242, c244:t.c244, interets, interetsEch, interetsSaisis, capitalEch,
-          crdEch:crd, crd:crdRetenu, dotations, immos, resultatAvantAmort, resultatComptable};
+          crdEch:crd, crd:crdRetenu, depots:depotsAu31(y), dotations, immos, resultatAvantAmort, resultatComptable};
 }
 /* Chaîne fiscale (art. 39 C : les amortissements ne peuvent pas créer ou augmenter un déficit) */
 function fiscalJusqua(yCible){
@@ -1491,8 +1516,8 @@ function bilan(y){
     brut += i.valeurOrigine; amort += a.cumulFin;
   });
   const immoNettes = brut - amort;
-  return {historique:false, brut, amort, immoNettes, crd:c.crd, resultat:c.resultatComptable,
-          capital: immoNettes - c.resultatComptable - c.crd, lignes};
+  return {historique:false, brut, amort, immoNettes, crd:c.crd, depots:c.depots, resultat:c.resultatComptable,
+          capital: immoNettes - c.resultatComptable - c.crd - c.depots, lignes};
 }
 
 /* ============ Fichiers : ouverture / enregistrement ============ */
@@ -2493,7 +2518,7 @@ function ajouterJetons(js){
 }
 function retirerJeton(i){ S[cleF()] = (S[cleF()] || []).filter((_, k) => k !== i); filtresBqChanges(); renderAll(); }
 function viderFiltres(){ S[cleF()] = []; S.qEcr = ""; S.qType = null; if(S.tab !== "banque"){ S.lignesEcr = ""; S.lignesGL = ""; } filtresBqChanges(); renderAll(); }
-/* Banque : un nouveau filtre repart d'une sélection vide, et les lignes classées entre-temps quittent la vue « À classer » */
+/* Banque : un nouveau filtre repart d'une sélection vide */
 function filtresBqChanges(){ if(S.tab === "banque"){ S.bq.sel.clear(); S.bq.garde.clear(); S.bq.dernier = null; } }
 /* « / » place le curseur dans la barre de filtres */
 document.addEventListener("keydown", ev => {
@@ -3215,8 +3240,8 @@ function liasse(y){
   const p218 = R(c.produits), c242 = R(c.c242), c244 = R(c.c244), c254 = R(c.dotations), c294 = R(c.interets);
   const c264 = c242 + c244 + c254, rExpl = p218 - c264, r310 = rExpl - c294;
   const reint = R(f.reintegration), ardUt = R(f.ardUtilise), rf = r310 + reint - ardUt, def = R(f.deficitsImputes);
-  const brut = R(b.brut), am = R(b.amort), net = brut - am, crd = R(b.crd), cap = net - r310 - crd;
-  return {f, c, b, p218, c242, c244, c254, c294, c264, rExpl, r310, reint, ardUt, rf, def, brut, am, net, crd, cap};
+  const brut = R(b.brut), am = R(b.amort), net = brut - am, crd = R(b.crd), dep = R(b.depots || 0), cap = net - r310 - crd - dep;
+  return {f, c, b, p218, c242, c244, c254, c294, c264, rExpl, r310, reint, ardUt, rf, def, brut, am, net, crd, dep, cap};
 }
 function n1(y){
   if(!exercice(y-1)) return null;
@@ -3234,8 +3259,8 @@ function form2033A(y, L, P){
     bande("Passif") + lt(["Exercice N", "N-1"]) +
     lc("Capital individuel", [["120", L.cap], ["", p("cap")]]) +
     lc("Résultat de l'exercice (bénéfice ou perte)", [["136", L.r310, true], ["", p("r310")]]) +
-    lc("Emprunts et dettes assimilées", [["156", L.crd], ["", p("crd")]]) +
-    lc("Total passif", [["180", L.cap + L.r310 + L.crd], ["", P && P.cap != null ? P.cap + (P.r310||0) + (P.crd||0) : null]], {tot:1}),
+    lc("Emprunts et dettes assimilées", [["156", L.crd + L.dep], ["", P && P.crd != null ? P.crd + (P.dep||0) : null]]) +
+    lc("Total passif", [["180", L.cap + L.r310 + L.crd + L.dep], ["", P && P.cap != null ? P.cap + (P.r310||0) + (P.crd||0) + (P.dep||0) : null]], {tot:1}),
     `Le capital équilibre le bilan (trésorerie non suivie).${P?" Colonne N-1 : celle de la déclaration de l'an dernier.":""}`);
 }
 function form2033B(y, L, P){
@@ -3472,7 +3497,7 @@ function etatsFinanciers(y){
   const lignesDet = (l) => { const a = det(c.t, l), b = cp ? det(cp.t, l) : [], noms = [...new Set([...a, ...b].map(x=>x[0]))];
     return noms.map(n => ln(`<span class="ind">${esc(n)}</span>`, (a.find(x=>x[0]===n)||[])[1] ?? null, cp ? (b.find(x=>x[0]===n)||[])[1] ?? null : null, {sous:1})).join(""); };
   const immos = c.immos.filter(x => x.entree <= y), emp = S.data.emprunts;
-  const total = L.cap + L.r310 + L.crd;
+  const total = L.cap + L.r310 + L.crd + L.dep;
   return `<div class="ef">
   <section class="feuille garde">
     <div class="g-bande"></div>
@@ -3493,10 +3518,10 @@ function etatsFinanciers(y){
         <tr><td>Immobilisations corporelles</td><td class="n">${eur0(L.brut)}</td><td class="n">${eur0(L.am)}</td><td class="n">${eur0(L.net)}</td>${P?`<td class="n n1">${v(P.net)}</td>`:""}</tr>
         <tr class="tot"><td>Total actif</td><td class="n">${eur0(L.brut)}</td><td class="n">${eur0(L.am)}</td><td class="n">${eur0(L.net)}</td>${P?`<td class="n n1">${v(P.net)}</td>`:""}</tr></table>
       <table>${th("Passif")}
-        ${ln("Compte de l'exploitant", L.cap, P?.cap)}${ln("Résultat de l'exercice", L.r310, P?.r310)}${ln("Emprunts bancaires", L.crd, P?.crd)}
-        ${ln("Total passif", total, P && P.cap != null ? P.cap+(P.r310||0)+(P.crd||0) : null, {tot:1})}</table>
+        ${ln("Compte de l'exploitant", L.cap, P?.cap)}${ln("Résultat de l'exercice", L.r310, P?.r310)}${ln("Emprunts bancaires", L.crd, P?.crd)}${L.dep || P?.dep ? ln("Dépôts de garantie reçus", L.dep, P ? P.dep||0 : null) : ""}
+        ${ln("Total passif", total, P && P.cap != null ? P.cap+(P.r310||0)+(P.crd||0)+(P.dep||0) : null, {tot:1})}</table>
     </div>
-    <div class="ef-barre"><div><i style="flex:${Math.max(0,L.cap)};background:var(--seg-2)"></i><i style="flex:${Math.max(0,L.r310)};background:var(--pos)"></i><i style="flex:${L.crd};background:var(--accent)"></i></div>
+    <div class="ef-barre"><div><i style="flex:${Math.max(0,L.cap)};background:var(--seg-2)"></i><i style="flex:${Math.max(0,L.r310)};background:var(--pos)"></i><i style="flex:${L.crd + L.dep};background:var(--accent)"></i></div>
       <span class="leg"><i style="background:var(--seg-2)"></i>Apport de l'exploitant <i style="background:var(--accent)"></i>Prêt bancaire${L.r310>0?' <i style="background:var(--pos)"></i>Résultat':""}</span></div>
     ${pied(2)}
   </section>
@@ -3556,6 +3581,8 @@ function ecrituresComptables(y){
   });
   const crdDebut = soldeGL164(y-1);
   if(crdDebut > 0) an.push({c:"164000", cr:r2(crdDebut)});
+  const depDebut = depotsAu31(y-1);
+  if(depDebut) an.push(depDebut > 0 ? {c:"165000", cr:depDebut} : {c:"165000", d:-depDebut});
   const solde = r2(an.reduce((s,l)=>s+(l.d||0)-(l.cr||0),0));
   an.push(solde >= 0 ? {c:"108000", cr:solde} : {c:"108000", d:-solde});
   add("AN", debut, "À-nouveaux au 1er janvier", an);
@@ -3907,7 +3934,7 @@ const cycleCompte = c => /^7/.test(c) ? "recettes" : ["164000","661160","616100"
 const REVUE_PCT = 0.20, REVUE_MIN = 150, SEUIL_GROS = 500, SEUIL_LMP = 23000;
 /* Questions : affirmations à confirmer. Oui = statut « vu » ; Non = « non », à expliquer ; « na » (ancienne réponse « Sans objet ») vaut confirmé */
 const QUESTIONS = [
-  ["caution", "recettes", "Aucun dépôt de garantie encaissé n'est classé en recette.", "Un dépôt de garantie se rend au locataire : ce n'est pas une recette. Reclassez-le dans Écritures."],
+  ["caution", "recettes", "Aucun dépôt de garantie encaissé n'est classé en recette.", "Un dépôt de garantie se rend au locataire : ce n'est pas une recette. Reclassez-le en « Dépôt de garantie reçu » dans Écritures."],
   ["loue", "recettes", "Le logement a été loué toute l'année.", "Indiquez les mois sans locataire : ils expliquent l'écart sur les loyers."],
   ["marche", "recettes", "Le loyer est au prix du marché : le locataire n'est pas un proche logé à prix réduit.", "Un loyer trop bas peut être réévalué par l'administration : expliquez la situation."],
   ["perso", "charges", "Aucune dépense personnelle n'est déduite.", "Retirez les dépenses personnelles : elles ne se déduisent pas."],
@@ -4389,7 +4416,8 @@ const MOTS = {"Charges refacturées":"Charges payées par le locataire", "Autre 
   "Assurance":"Assurance du logement", "Électricité / gaz":"Électricité, gaz", "Entretien et réparations":"Entretien, réparation",
   "Petit équipement (< 500 € HT)":"Petit équipement", "Frais de gestion / agence":"Frais d'agence", "Honoraires":"Honoraires (comptable…)",
   "Autre charge":"Autre dépense", "CFE":"CFE (impôt local)", "Intérêts emprunt":"Intérêts du prêt", "Remboursement emprunt":"Capital remboursé",
-  "Assurance emprunt":"Assurance du prêt", "Achat d'immobilisation":"Achat amorti (travaux, mobilier)", "Versement d'un prêt":"Versement du prêt par la banque"};
+  "Assurance emprunt":"Assurance du prêt", "Achat d'immobilisation":"Achat amorti (travaux, mobilier)", "Versement d'un prêt":"Versement du prêt par la banque",
+  "Dépôt de garantie reçu":"Dépôt de garantie reçu du locataire", "Dépôt de garantie rendu":"Dépôt de garantie rendu au locataire"};
 const mot = n => MOTS[n] || n || "Autre";
 const ICM = {maison:'M4 11l8-6 8 6v9H4z', banque:'M3 10l9-5 9 5M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18', immeuble:'M5 21V4h10v17M15 9h4v12M8 8h3M8 12h3M8 16h3',
   doc:'M6 3h9l4 4v14H6zM9 12h6M9 16h6', ticket:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6', photo:'M4 8h3l2-3h6l2 3h3v11H4zM15.5 13a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
@@ -5238,8 +5266,6 @@ function validerTri(ids){
   toast(`${n} écriture${pl(n)} créée${pl(n)}, ${ign} opération${pl(ign)} ignorée${pl(ign)}${lies?`, ${lies} facture${pl(lies)} reçue${pl(lies)} rattachée${pl(lies)}`:""}.`);
   if(bloques.size) avertir(`Certaines opérations restent à trier : l'exercice ${[...bloques].sort().join(", ")} est clôturé, repris de l'Excel ou n'existe pas. Rouvrez-le ou ignorez ces opérations.`);
 }
-function supprimerRegle(id){ const B = S.data.banque; B.regles = B.regles.filter(r => r.id !== id); setDirty(); renderAll(); }
-function majRegle(id, k, v){ const r = S.data.banque.regles.find(r => r.id === id); r[k] = v.trim(); setDirty(); }
 function remettreATrier(i){
   const B = S.data.banque, o = B.ignorees[i];
   B.ignorees = B.ignorees.filter(x => x !== o);
@@ -5322,7 +5348,7 @@ function passeFiltreBq(o, J){
 /* Opérations affichées : vue (à classer, classées, toutes), filtres, puis tri par colonne */
 function opsVisibles(){
   const F = S.bq, v = S.bqVue, J = S.fBq || [];
-  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature || F.garde.has(o.id))) && passeFiltreBq(o, J));
+  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature)) && passeFiltreBq(o, J));
   const [col, sens] = (F.tri || "date").split("-"), k = sens === "desc" ? -1 : 1;
   const cmp = {date:(a,b) => a.date.localeCompare(b.date), libelle:(a,b) => norm(a.libelle).localeCompare(norm(b.libelle)) || a.date.localeCompare(b.date),
     montant:(a,b) => a.montant - b.montant || a.date.localeCompare(b.date), nature:(a,b) => libNatOp(a.nature).localeCompare(libNatOp(b.nature)) || a.date.localeCompare(b.date)}[col];
@@ -5380,7 +5406,7 @@ function creerRegle(mc, modeles, silencieux){
   if(!silencieux){ setDirty(); renderAll(); toast(`Règle « ${mc} » mémorisée${n?`, ${n} autre${pl(n)} opération${pl(n)} classée${pl(n)}`:""}.`); }
   return n;
 }
-/* Fenêtre « Classer » : nature (raccourcis vers les plus utilisées), tiers, et « Toujours ainsi » qui crée la règle */
+/* Fenêtre « Classer » : nature (raccourcis vers les plus utilisées), tiers ; « Classer et créer une règle » ouvre ensuite la fenêtre « Nouvelle règle » */
 function ouvrirClasser(id){
   const L = id ? [trouverOp(id)].filter(Boolean) : ciblesClasser(); if(!L.length) return;
   const cr = L.some(o => o.montant > 0), db = L.some(o => o.montant < 0), mixte = cr && db, un = L.length === 1, o0 = L[0];
@@ -5396,25 +5422,24 @@ function ouvrirClasser(id){
     <h3>${un ? "Classer l'opération" : `Classer ${L.length} opérations`}</h3>
     <p class="bqcl-s">${un ? `${fmtDate(o0.date)} · ${esc(o0.libelle)}` : mc ? esc(mc) : `${L.length} opérations`} · <b>${signeEur(tot)}</b>${un ? "" : " au total"}</p>
     <label class="bqcl-l">Nature<select name="nature" required><option value="">Choisir…</option>${opts}<option value="${IGNORER}" ${natCommune === IGNORER ? "selected" : ""}>Hors location (opération personnelle)</option></select></label>
-    <div class="bqcl-r">${raccourcis.map(x => `<button type="button" class="poste${natCommune === x ? " on" : ""}" data-n="${esc(x)}" style="--c:${x === IGNORER ? "var(--faint)" : COUL_GROUPE[NATURES[x].g]}">${esc(libNatOp(x))}</button>`).join("")}</div>
-    <label class="bqcl-l bqcl-t">Tiers <small>(facultatif${un ? "" : " : sinon chacune garde le sien"})</small><input name="tiers" value="${esc(un ? o0.tiers || "" : tiersCommun)}" placeholder="${esc(tiersSuggere(o0.libelle))}" autocomplete="off"></label>
-    ${mixte ? `<p class="bqcl-n">Entrées et sorties d'argent mélangées : la nature ne s'applique qu'aux opérations de même sens, et « Toujours ainsi » n'est pas proposé.</p>`
-      : `<label class="bqcl-c"><input type="checkbox" name="regle" ${mc && !un ? "checked" : ""}><span>Toujours ainsi : classer de même les prochaines opérations dont le libellé contient <input name="mc" value="${esc(mc)}" aria-label="Mot-clé" size="${Math.max(8, mc.length + 2)}"></span></label>`}
-    <div class="row"><button class="btn" value="oui" type="submit">${un ? "Classer" : `Classer les ${L.length}`}</button><button class="btn ghost" value="non" type="submit" formnovalidate>Annuler</button>
+    <div class="bqcl-r">${raccourcis.map(x => `<button type="button" class="poste${natCommune === x ? " on" : ""}" data-n="${esc(x)}" style="--c:${x === IGNORER ? "var(--faint)" : COUL_GROUPE[NATURES[x].g]}">${libNatOp(x)}</button>`).join("")}</div>
+    <label class="bqcl-l bqcl-t"><span>Tiers <small>(facultatif${un ? "" : " : sinon chacune garde le sien"})</small></span><input name="tiers" value="${esc(un ? o0.tiers || "" : tiersCommun)}" placeholder="${esc(tiersSuggere(o0.libelle))}" autocomplete="off"></label>
+    ${mixte ? `<p class="bqcl-n">Entrées et sorties d'argent mélangées : la nature ne s'applique qu'aux opérations de même sens.</p>` : ""}
+    <div class="row"><button class="btn" value="oui" type="submit">${un ? "Classer" : `Classer les ${L.length}`}</button>${mixte ? "" : `<button class="btn sec" value="regle" type="submit">Classer et créer une règle…</button>`}<button class="btn ghost" value="non" type="submit" formnovalidate>Annuler</button>
       ${L.some(o => o.nature) ? `<button class="btn ghost" value="remettre" type="submit" formnovalidate style="margin-right:auto">Remettre à classer</button>` : ""}
       ${un && o0.nature !== IGNORER ? `<button class="btn ghost" value="repartir" type="submit" formnovalidate style="margin-right:auto">✂ Répartir…</button>` : ""}</div></form>`;
   document.body.appendChild(d);
-  const sel = d.querySelector("select"), tiers = d.querySelector("[name=tiers]"), regle = d.querySelector("[name=regle]"), mcIn = d.querySelector("[name=mc]");
+  const sel = d.querySelector("select"), tiers = d.querySelector("[name=tiers]");
   const majRacc = () => { d.querySelectorAll(".bqcl-r .poste").forEach(b => b.classList.toggle("on", b.dataset.n === sel.value)); tiers.closest("label").hidden = sel.value === IGNORER; };
   sel.addEventListener("change", majRacc); majRacc();
   d.querySelectorAll(".bqcl-r .poste").forEach(b => b.addEventListener("click", () => { sel.value = b.dataset.n; majRacc(); }));
-  mcIn?.addEventListener("input", () => { if(mcIn.value.trim()) regle.checked = true; mcIn.size = Math.max(8, mcIn.value.length + 2); });
   d.addEventListener("close", () => {
-    const r = d.returnValue, v = sel.value, t = tiers.value.trim(), mot = regle?.checked ? (mcIn.value || "").trim() : ""; d.remove();
+    const r = d.returnValue, v = sel.value, t = tiers.value.trim(); d.remove();
     if(r === "remettre"){ L.forEach(o => { poserNature(o, ""); S.bq.sel.delete(o.id); }); setDirty(); renderAll(); return toast(`${L.length} opération${pl(L.length)} remise${pl(L.length)} à classer.`); }
     if(r === "repartir") return scinderOp(o0.id);
-    if(r !== "oui" || !v) return;
-    classerOps(L, v, t, mot);
+    if(r !== "oui" && r !== "regle" || !v) return;
+    const faits = classerOps(L, v, t, "");
+    if(r === "regle" && faits.length) ouvrirRegle({op:faits[0], modeles:faits, mc, nature:v, tiers:v === IGNORER ? "" : t || faits[0].tiers || ""});
   });
   d.showModal(); (natCommune ? d.querySelector("[value=oui]") : sel).focus();
 }
@@ -5432,6 +5457,106 @@ function classerOps(L, v, tiers, mot){
   }
   setDirty(); renderAll();
   toast(`${k} opération${pl(k)} classée${pl(k)} en « ${libNatOp(v)} »${regle ? `, règle « ${regle} » mémorisée${autres ? ` (${autres} autre${pl(autres)} classée${pl(autres)})` : ""}` : ""}${autreSens ? `. ${autreSens} ${autreSens > 1 ? "restent" : "reste"} à classer : sens différent` : ""}.`);
+  return faits;
+}
+/* ---- Règles : « si le libellé contient… », mémorisées dans le dossier, créées, modifiées ou supprimées dans l'onglet Règles ---- */
+const sensLib = k => k === "credit" ? "Entrée d'argent" : "Sortie d'argent";
+const contientMc = (o, mc) => !!mc.trim() && norm(o.libelle).includes(norm(mc));
+/* Libellé avec le mot-clé surligné (sans tenir compte des accents ni des majuscules) */
+function libSurligne(lib, mc){
+  const i = mc.trim() ? sansAccents(lib).indexOf(sansAccents(mc.trim())) : -1;
+  return i < 0 ? esc(lib) : `${esc(lib.slice(0, i))}<mark>${esc(lib.slice(i, i + mc.trim().length))}</mark>${esc(lib.slice(i + mc.trim().length))}`;
+}
+/* Opérations encore en attente classées par cette règle */
+const opsDeRegle = r => S.data.banque.aTrier.filter(o => o.regle === r.motCle && sensOp(o) === r.sens);
+/* Fenêtre « Nouvelle règle » (ou « Modifier la règle ») : aperçu de l'opération, mot-clé, sens, nature, tiers.
+   o.op : l'opération montrée en aperçu (sinon la première à classer qui contient le mot-clé) ; o.modeles : opérations déjà classées à rattacher à la règle */
+function ouvrirRegle(o = {}){
+  const B = S.data.banque, r = o.id ? B.regles.find(x => x.id === o.id) : null, op = o.op || null;
+  const v0 = r ? {mc:r.motCle, sens:r.sens, nature:r.nature, tiers:r.tiers || ""}
+    : {mc:o.mc ?? (op ? motCleSuggere(op.libelle) : ""), sens:op ? sensOp(op) : "debit", nature:o.nature ?? op?.nature ?? "", tiers:o.tiers ?? (op?.nature && op.nature !== IGNORER ? op.tiers || "" : "")};
+  const d = document.createElement("dialog"); d.className = "boite bqcl bqrg";
+  d.innerHTML = `<form method="dialog" novalidate>
+    <h3>${r ? "Modifier la règle" : "Nouvelle règle"}</h3>
+    <div class="bqap" aria-live="polite"></div>
+    <label class="bqcl-l">Si le libellé contient<input name="mc" value="${esc(v0.mc)}" autocomplete="off" spellcheck="false" placeholder="Par exemple BOULANGERIE PAUL"></label>
+    <div class="bqrg-2">
+      <label class="bqcl-l">Sens<select name="sens" ${op ? "disabled" : ""}><option value="debit" ${v0.sens === "debit" ? "selected" : ""}>Sortie d'argent</option><option value="credit" ${v0.sens === "credit" ? "selected" : ""}>Entrée d'argent</option></select></label>
+      <label class="bqcl-l">Alors la classer en<select name="nature"></select></label>
+    </div>
+    <div class="bqcl-r"></div>
+    <label class="bqcl-l bqcl-t"><span>Tiers <small>(facultatif)</small></span><input name="tiers" value="${esc(v0.tiers)}" autocomplete="off"></label>
+    <p class="bqrg-n"></p>
+    <div class="row"><button class="btn" value="oui" type="submit">${r ? "Enregistrer" : "Créer la règle"}</button><button class="btn ghost" value="non" type="submit" formnovalidate>Annuler</button>
+      ${r ? `<button class="btn ghost bqrg-sup" value="supprimer" type="submit" formnovalidate style="margin-right:auto">Supprimer la règle</button>` : ""}</div></form>`;
+  document.body.appendChild(d);
+  const f = n => d.querySelector(`[name=${n}]`), mcIn = f("mc"), sensIn = f("sens"), natIn = f("nature"), tiersIn = f("tiers"), ap = d.querySelector(".bqap"), note = d.querySelector(".bqrg-n");
+  const remplirNatures = val => {
+    const cr = sensIn.value === "credit", freq = postesFrequents(cr);
+    natIn.innerHTML = `<option value="">Choisir…</option><optgroup label="Les plus utilisées">${freq.map(x => optNature(x, val)).join("")}</optgroup><optgroup label="Autres">${Object.keys(NATURES).filter(x => entreeNature(x) === cr && !freq.includes(x)).map(x => optNature(x, val)).join("")}</optgroup><option value="${IGNORER}" ${val === IGNORER ? "selected" : ""}>Hors location (opération personnelle)</option>`;
+    d.querySelector(".bqcl-r").innerHTML = [...freq.slice(0, 5), IGNORER].map(x => `<button type="button" class="poste" data-n="${esc(x)}" style="--c:${x === IGNORER ? "var(--faint)" : COUL_GROUPE[NATURES[x].g]}">${libNatOp(x)}</button>`).join("");
+    d.querySelectorAll(".bqcl-r .poste").forEach(b => b.addEventListener("click", () => { natIn.value = b.dataset.n; maj(); }));
+  };
+  const maj = () => {
+    const mc = mcIn.value, sens = sensIn.value, montre = op || B.aTrier.find(x => !x.nature && sensOp(x) === sens && contientMc(x, mc)) || (r && opsDeRegle(r)[0]);
+    d.querySelectorAll(".bqcl-r .poste").forEach(b => b.classList.toggle("on", b.dataset.n === natIn.value));
+    tiersIn.closest("label").hidden = natIn.value === IGNORER;
+    ap.innerHTML = montre ? `<span class="bqap-t">${op ? (o.modeles?.length > 1 ? `Première des ${o.modeles.length} opérations sélectionnées` : "Opération sélectionnée") : "Exemple d'opération concernée"}</span>
+      <div class="bqap-o"><span class="bqd">${fmtDate(montre.date)}</span><span class="bqap-l">${libSurligne(montre.libelle, mc)}</span><b class="bqm ${montre.montant > 0 ? "in" : ""}">${signeEur(montre.montant)}</b></div>
+      ${op && mc.trim() && !contientMc(op, mc) ? `<span class="bqap-x">Ce mot-clé n'apparaît pas dans le libellé de cette opération.</span>` : ""}`
+      : `<span class="bqap-t">Aperçu</span><div class="bqap-o bqap-0">${mc.trim() ? "Aucune opération à classer ne contient ce mot-clé pour l'instant." : "Tapez un mot du libellé bancaire : la première opération concernée s'affiche ici."}</div>`;
+    const n = mc.trim() ? B.aTrier.filter(x => !x.nature && !x.parent && sensOp(x) === sens && contientMc(x, mc)).length : 0, suit = r ? opsDeRegle(r).length : 0;
+    note.textContent = [n ? `${n} opération${pl(n)} à classer ${n > 1 ? "seront classées" : "sera classée"} tout de suite.` : "", suit ? `${suit} opération${pl(suit)} déjà classée${pl(suit)} par cette règle ${suit > 1 ? "suivront" : "suivra"} la modification.` : "", "Les prochains relevés importés seront classés d'office ; vous pourrez toujours corriger."].filter(Boolean).join(" ");
+  };
+  remplirNatures(v0.nature);
+  mcIn.addEventListener("input", maj); natIn.addEventListener("change", maj); sensIn.addEventListener("change", () => { remplirNatures(natIn.value); maj(); });
+  maj();
+  d.querySelector("form").addEventListener("submit", ev => {
+    if(ev.submitter?.value !== "oui") return;
+    const err = !mcIn.value.trim() ? [mcIn, "Indiquez le mot-clé à reconnaître dans le libellé."] : !natIn.value ? [natIn, "Choisissez la nature."] : op && !contientMc(op, mcIn.value) ? [mcIn, "Ce mot-clé n'apparaît pas dans le libellé de l'opération."] : null;
+    if(err){ ev.preventDefault(); note.textContent = err[1]; note.classList.add("err"); err[0].focus(); }
+  });
+  d.addEventListener("close", async () => {
+    const rv = d.returnValue, val = {motCle:mcIn.value.trim().toUpperCase(), sens:sensIn.value, nature:natIn.value, tiers:natIn.value === IGNORER ? "" : tiersIn.value.trim()}; d.remove();
+    if(rv === "supprimer") return supprimerRegle(r.id);
+    if(rv === "oui") enregistrerRegle(val, r, o.modeles || (op ? [op] : []));
+  });
+  d.showModal(); (r || !mcIn.value ? mcIn : natIn.value ? d.querySelector("[value=oui]") : natIn).focus();
+}
+function enregistrerRegle(val, r, modeles){
+  const B = S.data.banque, avant = r ? {...r} : null;
+  B.regles = B.regles.filter(x => x === r || !(norm(x.motCle) === norm(val.motCle) && x.sens === val.sens));
+  if(r) Object.assign(r, val); else B.regles.push(r = {id:uid(), ...val});
+  // Opérations en attente classées par l'ancienne version de la règle : elles suivent la modification
+  let suit = 0;
+  if(avant) B.aTrier.forEach(x => { if(x.regle === avant.motCle && sensOp(x) === avant.sens){ if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; suit++; } else delete x.regle; } });
+  // Opérations qui ont servi de modèle (classées juste avant) : rattachées à la règle
+  modeles.forEach(x => { if(contientMc(x, r.motCle) && sensOp(x) === r.sens){ if(x.nature !== r.nature) poserNature(x, r.nature); if(r.tiers) x.tiers = r.tiers; x.regle = r.motCle; } });
+  let n = 0;
+  B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; if(x.nature === IGNORER) delete x.doublon; else if(!x.pasDoublon) chercherDoublon(x); } } });
+  setDirty(); renderAll();
+  toast(`Règle « ${r.motCle} » ${avant ? "modifiée" : "créée"}${n ? `, ${n} opération${pl(n)} classée${pl(n)}` : ""}${suit ? `, ${suit} mise${pl(suit)} à jour` : ""}.`);
+}
+async function supprimerRegle(id){
+  const B = S.data.banque, r = B.regles.find(x => x.id === id); if(!r) return;
+  const n = opsDeRegle(r).length;
+  if(!await confirmer(`Supprimer la règle « ${r.motCle} » ?\n\nLes prochaines opérations ne seront plus classées d'office.${n ? ` Les ${n} opération${pl(n)} déjà classée${pl(n)} par cette règle le ${n > 1 ? "restent" : "reste"}.` : ""}`, {ok:"Supprimer", danger:true})) return;
+  B.regles = B.regles.filter(x => x !== r); opsDeRegle(r).forEach(o => delete o.regle);
+  setDirty(); renderAll(); toast(`Règle « ${r.motCle} » supprimée.`);
+}
+/* Onglet Règles de la page Banque */
+function vueRegles(){
+  const R = [...S.data.banque.regles].sort((a,b) => a.motCle.localeCompare(b.motCle));
+  return `<div class="card"><div class="bqh"><div><h3>Règles de classement</h3><p>Une opération importée dont le libellé contient le mot-clé est classée d'office. Vous pouvez toujours la corriger avant de valider.</p></div>
+    <button class="btn" onclick="ouvrirRegle()">+ Nouvelle règle</button></div>
+    ${R.length ? `<div class="bqlist">
+      <div class="bqr bqrr th"><span>Si le libellé contient</span><span>Sens</span><span>Alors la classer en</span><span>Tiers</span><span>En attente</span><span></span></div>
+      ${R.map(r => { const n = opsDeRegle(r).length; return `<div class="bqr bqrr" onclick="if(!event.target.closest('button'))ouvrirRegle({id:'${r.id}'})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')ouvrirRegle({id:'${r.id}'})">
+        <span class="bql"><b>« ${esc(r.motCle)} »</b></span><span class="bqrr-s">${sensLib(r.sens)}</span><span class="bqn">${chipOp(r.nature)}</span><span class="bqrr-t">${esc(r.tiers || "–")}</span>
+        <span class="bqrr-c">${n ? `${n} opération${pl(n)}` : "–"}</span>
+        <span class="bqrr-a"><button class="btn ghost small" aria-label="Modifier la règle" title="Modifier" onclick="ouvrirRegle({id:'${r.id}'})">${I_EDIT}</button><button class="btn ghost small" aria-label="Supprimer la règle" title="Supprimer" onclick="supprimerRegle('${r.id}')">${I_DEL}</button></span></div>`; }).join("")}
+    </div>` : `<div class="bqvide"><b>Aucune règle pour l'instant.</b>Créez-en une ici, ou avec « Classer et créer une règle… » en classant des opérations.</div>`}
+  </div>`;
 }
 function vueBanque(){
   if(S.imp) return vueImport();
@@ -5453,12 +5578,14 @@ function vueBanque(){
         <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small sec" onclick="confirmerDoublon('${o.id}',true)">Oui, c'est elle</button><button class="btn small ghost" onclick="confirmerDoublon('${o.id}',false)">Non</button></span></div>` : ""}
     </div>`; };
   const [tc, ts] = (F.tri || "date").split("-"), th = (col, lib, cls = "") => `<button class="bqth ${cls} ${tc === col ? "on" : ""}" onclick="trierBq('${col}')">${lib}${tc === col ? (ts === "desc" ? " ↓" : " ↑") : ""}</button>`;
-  const vide = !vis.length ? `<div class="bqvide">${J.length ? `<b>Aucune opération ne correspond aux filtres.</b><button class="btn small sec" style="margin-top:8px" onclick="viderFiltres()">Retirer les filtres</button>`
+  const vide = !vis.length ? `<div class="bqvide">${J.length ? `<b>${S.bqVue === "atraiter" ? "Plus rien à classer avec ces filtres ✓" : "Aucune opération ne correspond aux filtres."}</b><button class="btn small sec" style="margin-top:8px" onclick="viderFiltres()">Retirer les filtres</button>`
       : S.bqVue === "atraiter" ? `<b>Tout est classé ✓</b>${classes ? `Il reste à valider ${classes} opération${pl(classes)} pour créer les écritures.` : ""}` : `<b>Aucune opération classée pour l'instant.</b>`}</div>` : "";
   const totVis = r2(vis.reduce((t,o) => t + o.montant, 0));
   const y = S.year, t = totauxEcritures(y), postes = Object.entries(t.parNature).sort((a,b)=>b[1]-a[1]), maxP = Math.max(1, ...postes.map(p=>p[1]));
   const ty = FILTRES.find(f => f.k === S.qType);
-  return `<div class="pagehead"><h1>Banque</h1></div>
+  const onglets = tetePage("Banque", segments("bqOnglet", [["operations", "Opérations"], ["regles", "Règles"]], S.bqOnglet || "operations"));
+  if(S.bqOnglet === "regles") return onglets + vueRegles();
+  return `${onglets}
   ${tous.length ? `<div class="card">
     <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser} à classer · ${classes} classée${pl(classes)}, à valider pour créer les écritures</p></div>
       <div class="row" style="gap:8px"><button class="btn sec small" onclick="importerCSV()">Importer un relevé</button><button class="btn sec" onclick="validerTri()" ${classes ? "" : "disabled"}>${classes ? `Valider ${classes} classée${pl(classes)}` : "Valider"}</button></div></div>
@@ -5472,6 +5599,7 @@ function vueBanque(){
           ${J.length ? `<span class="qfin"><span class="qnb">${vis.length} opération${pl(vis.length)} · ${signeEur(totVis)}</span><button class="qact" title="Retirer tous les filtres" aria-label="Retirer tous les filtres" onclick="event.stopPropagation();viderFiltres()">×</button></span>` : ""}
         </div><div id="qMenu" class="qmenu hide" role="listbox"></div></div>
       </div>
+      ${nSel ? `<button class="btn sec" style="height:40px;flex:none" onclick="ouvrirRegle({op:opsSel()[0], modeles:opsSel()})">Nouvelle règle…</button>` : ""}
       <button class="btn" id="bqClasser" onclick="ouvrirClasser()" ${cibles.length ? "" : "disabled"}>${cibles.length === 1 ? "Classer l'opération…" : `Classer ${nSel ? "la sélection" : `les ${cibles.length}`}…`}</button>
     </div>
     <div class="bqsel" id="bqSelInfo">${infoSelection()}</div>
@@ -5481,12 +5609,6 @@ function vueBanque(){
   ${zoneDepot("Déposer un autre relevé", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer · les opérations déjà connues sont écartées", "importerCSV()", "deposerCSV(event)", "petit")}`
     : `${zoneDepot("Déposer le relevé de l'année", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer", "importerCSV()", "deposerCSV(event)")}<div class="vide">✓ Tout est imputé</div>`}
   ${postes.length ? `<div class="card"><h3>Postes ${y}</h3><div class="barresh">${postes.map(([n,v])=>`<div class="bh" role="button" title="Voir ces écritures" onclick="S.vueEcr='journal';S.fEcr=[{t:'nature',v:${jsq(n)}}];S.lignesEcr='';allerA('ecritures')"><span>${libNature(n)}</span><div>${jauge([[v, COUL_GROUPE[NATURES[n]?.g||"charge"]]], maxP, 10)}</div><b>${eur0(v)}</b></div>`).join("")}</div></div>` : ""}
-  <div class="card"><details><summary>Règles automatiques (${B.regles.length})</summary>
-  ${B.regles.length ? `<div class="tablewrap" style="margin-top:10px"><table><tr><th>Si le libellé contient</th><th>Sens</th><th>Nature</th><th>Tiers</th><th></th></tr>
-    ${B.regles.map(r=>`<tr><td><input value="${esc(r.motCle)}" style="width:100%;min-width:120px" onchange="majRegle('${r.id}','motCle',this.value)"></td><td>${r.sens==="credit"?"Entrée":"Sortie"}</td><td>${libNatOp(r.nature)}</td>
-      <td>${r.nature===IGNORER?"":`<input value="${esc(r.tiers)}" style="width:100%;min-width:110px" onchange="majRegle('${r.id}','tiers',this.value)">`}</td>
-      <td class="n"><button class="btn ghost small" aria-label="Supprimer la règle" onclick="supprimerRegle('${r.id}')">${I_DEL}</button></td></tr>`).join("")}</table></div>`
-    : `<p class="sub" style="margin:10px 0 0">Cochez « Toujours ainsi » en classant des opérations pour créer une règle.</p>`}</details></div>
   ${B.ignorees.length ? `<div class="card"><details><summary>${B.ignorees.length} opération${pl(B.ignorees.length)} hors location</summary><div class="tablewrap" style="margin-top:10px"><table>
     ${B.ignorees.map((o,i)=>[o,i]).sort((a,b)=>b[0].date.localeCompare(a[0].date)).slice(0,200).map(([o,i])=>`<tr><td>${fmtDate(o.date)}</td><td>${esc(o.libelle)}</td><td class="n">${eur(o.montant)}</td><td class="n"><button class="btn small ghost" onclick="remettreATrier(${i})">Remettre à trier</button></td></tr>`).join("")}
   </table></div></details></div>` : ""}`;
