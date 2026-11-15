@@ -951,7 +951,7 @@ dialog#viewer::backdrop{background:rgba(10,15,25,.5)}
 .bqaide{margin:10px 2px 0;font-size:12.5px;color:var(--faint)}
 dialog.bqcl{width:min(520px,calc(100vw - 32px))}
 dialog.bqcl .bqcl-s{margin:-4px 0 16px;color:var(--muted);overflow-wrap:anywhere} dialog.bqcl .bqcl-s b{color:var(--text)}
-.bqcl-l{display:flex;flex-direction:column;align-items:stretch;gap:5px;font-size:13px;color:var(--muted);margin:0 0 10px} .bqcl-l small{font-size:12px} .bqcl-l select,dialog.bqcl .bqcl-l input{width:100%;margin:0}
+.bqcl-l{display:block;font-size:13px;color:var(--muted);margin:0 0 10px} .bqcl-l>input,.bqcl-l>select{display:block;margin-top:5px} dialog.bqcl input:disabled{background:var(--surface-2);color:var(--muted);opacity:1} .bqcl-l small{font-size:12px} .bqcl-l select,dialog.bqcl .bqcl-l input{width:100%;margin:0}
 .bqcl-l[hidden]{display:none}
 .bqcl-r{display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 16px}
 .bqcl-r .poste{border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13px;padding:4px 11px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
@@ -1434,12 +1434,36 @@ function totauxEcritures(y){
   });
   return t;
 }
-/* Dépôts de garantie encore dus aux locataires au 31/12 (compte 165) : reçus moins rendus, sur toutes les années saisies */
+/* Dépôts de garantie encore dus aux locataires au 31/12 (compte 165) : reçus moins rendus, sur toutes les années saisies,
+   plus ceux détenus avant le suivi dans l'outil (régularisation saisie sur un exercice) */
+const regulDepots = y => r2(Number(exercice(y)?.regulDepots?.montant) || 0);
 function depotsAu31(y){
   let s = 0;
-  for(const [k, ex] of Object.entries(S.data.exercices)) if(+k <= y && ex.statut !== "historique") (ex.ecritures||[]).forEach(e => {
-    if(e.nature === "Dépôt de garantie reçu") s += e.montant; else if(e.nature === "Dépôt de garantie rendu") s -= e.montant; });
+  for(const [k, ex] of Object.entries(S.data.exercices)) if(+k <= y && ex.statut !== "historique"){ s += regulDepots(+k); (ex.ecritures||[]).forEach(e => {
+    if(e.nature === "Dépôt de garantie reçu") s += e.montant; else if(e.nature === "Dépôt de garantie rendu") s -= e.montant; }); }
   return r2(s);
+}
+/* Fenêtre « Dépôts de garantie détenus au 1er janvier » : correction passée sur l'exercice (108 → 165) */
+function regulariserDepots(y){
+  const ex = exercice(y); if(!ex || verrouille(y) || isHistorique(y)) return;
+  const sansRegul = r2(depotsAu31(y) - regulDepots(y)), rg = ex.regulDepots, propose = rg ? rg.montant : Math.max(0, -sansRegul);
+  const d = document.createElement("dialog"); d.className = "boite bqcl";
+  d.innerHTML = `<form method="dialog" novalidate><h3>Dépôts de garantie détenus au 1er janvier ${y}</h3>
+    <p class="bqcl-s">Les dépôts encaissés avant que vous suiviez vos comptes ici, et pas encore rendus. Ils figurent dans la case 156 de la dernière déclaration, avec le prêt.</p>
+    <label class="bqcl-l">Montant total des dépôts détenus<input name="m" inputmode="decimal" value="${propose ? String(propose).replace(".", ",") : ""}" placeholder="0,00" autocomplete="off"></label>
+    <label class="bqcl-l">Motif <small>(facultatif)</small><input name="motif" value="${esc(rg?.motif || "Dépôts reçus avant le suivi dans l'outil")}" autocomplete="off"></label>
+    <p class="bqrg-n">${sansRegul < 0 ? `Vous avez rendu ${eur(-sansRegul)} de plus que ce que l'outil a vu encaisser : il faut au moins ce montant.` : ""} L'outil passe une écriture au 1er janvier ${y} entre le compte de l'exploitant (108) et les dépôts reçus (165), sans opération bancaire.</p>
+    <div class="row"><button class="btn" value="oui" type="submit">Enregistrer</button><button class="btn ghost" value="non" type="submit">Annuler</button>
+      ${rg ? `<button class="btn ghost" value="suppr" type="submit" style="margin-right:auto">Supprimer</button>` : ""}</div></form>`;
+  document.body.appendChild(d);
+  d.addEventListener("close", () => {
+    const rv = d.returnValue, m = r2(parseMontant(d.querySelector("[name=m]").value) || 0), motif = d.querySelector("[name=motif]").value.trim(); d.remove();
+    if(rv === "suppr" || (rv === "oui" && !m)) delete ex.regulDepots;
+    else if(rv === "oui") ex.regulDepots = {montant:m, motif, date:aujourdhui()};
+    else return;
+    setDirty(); renderAll();
+  });
+  d.showModal(); d.querySelector("[name=m]").focus();
 }
 function calculAnnee(y){
   const t = totauxEcritures(y);
@@ -2209,8 +2233,8 @@ function vueEcritures(){
   if(isHistorique(y)) return entete(`Écritures ${y}`) + `<div class="alert info">${histTexte(y)}</div>`;
   const ex = exercice(y); ex.ecritures ??= [];
   const vue = S.vueEcr || "journal", lock = verrouille(y);
-  const ed = S.editId ? ex.ecritures.find(e=>e.id===S.editId) : null;
-  const ouvert = !lock && (S.composer || ed);
+  const ed = null; // la modification se fait dans une fenêtre par-dessus (ouvrirEcriture)
+  const ouvert = !lock && S.composer;
   const t = totauxEcritures(y);
   const tete = tetePage(`Écritures ${y}`, segments("vueEcr", [["journal","Écritures"],["balance","Balance"],["grandlivre","Grand livre"]], vue),
     btnExporter(),
@@ -2258,7 +2282,7 @@ function tableEcritures(list, lock, filtre){
       <td><div class="ejx-op"><span class="ejx-ic ${inn?"in":""}" title="${inn?"Argent reçu":"Argent payé"}">${inn?IC_EJ.in:IC_EJ.out}</span><span class="ejx-t" ${e.libelleBanque?`title="Relevé : ${esc(e.libelleBanque)}"`:""}><b>${esc(e.tiers)||"–"}</b>${e.commentaire?`<small>${esc(e.commentaire)}</small>`:""}<span class="ejx-cm">${chipNature(e.nature)}</span></span></div></td>
       <td class="ca">${chipNature(e.nature)}</td><td class="cpj noprint">${pj(e)}</td>
       <td class="n mt ${inn?"in":""}">${lienGL({t:"montant", op:"=", v:e.montant}, `<b>${inn?"+":"−"}${num(e.montant)}</b> €`)}</td>
-      <td class="n cac noprint">${lock?"":`<button class="btn ghost small" aria-label="Modifier" title="Modifier" onclick="S.editId='${e.id}';renderAll();haut()">${I_EDIT}</button><button class="btn ghost small" aria-label="Supprimer" title="Supprimer" onclick="delEcriture('${e.id}')">${I_DEL}</button>`}</td></tr>`; };
+      <td class="n cac noprint">${lock?"":`<button class="btn ghost small" aria-label="Modifier" title="Modifier" onclick="ouvrirEcriture('${e.id}')">${I_EDIT}</button><button class="btn ghost small" aria-label="Supprimer" title="Supprimer" onclick="delEcriture('${e.id}')">${I_DEL}</button>`}</td></tr>`; };
   const corps = Object.keys(parMois).map(Number).sort((a,b)=>a-b).map(m => { const ls = parMois[m], ferme = !!(S.ecrFerme||{})[m];
     return `<tbody class="ejx-m ${ferme?"ferme":""}"><tr class="ejx-h"><td colspan="6"><div class="blx-hd">
       <span class="glx-pill ejx-pill">${IC_EJ.cal}${MOIS_LONG[m-1]}</span><span class="glx-rule"></span>${som(ls)}<button class="ejx-rep noprint" aria-expanded="${!ferme}" title="${ferme?"Afficher":"Masquer"} les opérations de ${MOIS_LONG[m-1]}" onclick="basculerMoisEcr(${m})"><span class="glx-chev">${IC_GL.chevron}</span></button></div></td></tr>
@@ -2645,10 +2669,11 @@ function montantChamp(v, lib){
   return r2(n);
 }
 function saveEcriture(){
-  const ex = exercice(S.year);
+  const ex = exercice(S.year), x0 = S.editId && ex.ecritures.find(x => x.id === S.editId);
   const e = {date:$("#eDate").value, tiers:$("#eTiers").value.trim(), nature:$("#eNat").value, montant:r2(parseMontant($("#eMont").value)), commentaire:$("#eCom").value.trim()};
-  if(!e.date || isNaN(e.montant) || e.montant <= 0) return avertir("Date et montant positif obligatoires.");
-  if(yearOf(e.date) !== S.year) return avertir("La date doit être dans l'exercice " + S.year + ".");
+  if(x0?.banque){ e.date = x0.date; e.montant = x0.montant; } // venue du relevé : date et montant de la banque
+  if(!e.date || isNaN(e.montant) || e.montant <= 0){ avertir("Date et montant positif obligatoires."); return false; }
+  if(yearOf(e.date) !== S.year){ avertir("La date doit être dans l'exercice " + S.year + "."); return false; }
   e.sens = entreeNature(e.nature) ? "recette" : "depense";
   if(!e.commentaire) delete e.commentaire;
   const pr = NAT_PRET[e.nature] && $("#ePret")?.value; if(pr) e.pret = pr;
@@ -2657,6 +2682,36 @@ function saveEcriture(){
   else ex.ecritures.push({id:uid(), ...e});
   rapprocherFactures();
   setDirty(); renderAll(); setTimeout(()=>$("#eMont")?.focus(),0);
+  return true;
+}
+/* Modifier une écriture : fenêtre par-dessus la liste. Venue du relevé : date et montant de la banque, non modifiables, et nature du même sens */
+function ouvrirEcriture(id){
+  const y = S.year, ex = exercice(y), ed = ex.ecritures.find(e => e.id === id); if(!ed || verrouille(y)) return;
+  const bq = !!ed.banque, entree = estEntree(ed), nats = Object.keys(NATURES).filter(n => !bq || entreeNature(n) === entree);
+  if(!nats.includes(ed.nature)) nats.unshift(ed.nature);
+  S.composer = false; renderAll();
+  const d = document.createElement("dialog"); d.className = "boite bqcl ecrdlg";
+  d.innerHTML = `<form method="dialog" novalidate><h3>Modifier l'écriture</h3>
+    ${bq ? `<p class="bqcl-s">D'après le relevé : ${esc(ed.libelleBanque || "")}</p>` : ""}
+    <div class="bqrg-2">
+      <label class="bqcl-l">Date${bq ? ` <small>(du relevé)</small>` : ""}<input type="date" id="eDate" value="${ed.date}" ${bq ? "disabled" : ""}></label>
+      <label class="bqcl-l">Montant TTC${bq ? ` <small>(du relevé)</small>` : ""}<input id="eMont" inputmode="decimal" value="${String(ed.montant).replace(".", ",")}" ${bq ? "disabled" : ""}></label>
+    </div>
+    <label class="bqcl-l">Nature<select id="eNat" onchange="$('#ePretL')?.toggleAttribute('hidden', !NAT_PRET[this.value])">${nats.map(n => optNature(n, ed.nature)).join("")}</select></label>
+    ${S.data.emprunts.length > 1 ? `<label class="bqcl-l" id="ePretL" ${NAT_PRET[ed.nature] ? "" : "hidden"}>Prêt<select id="ePret"><option value="">Selon le montant de l'échéance</option>${S.data.emprunts.map((l,i) => `<option value="${l.id}" ${ed.pret === l.id ? "selected" : ""}>${esc(nomPret(l,i))}</option>`).join("")}</select></label>` : ""}
+    <label class="bqcl-l">Tiers<input id="eTiers" list="tiersDlg" value="${esc(ed.tiers || "")}" autocomplete="off"></label>
+    <label class="bqcl-l">Commentaire <small>(facultatif)</small><input id="eCom" value="${esc(ed.commentaire || "")}" autocomplete="off"></label>
+    <datalist id="tiersDlg">${[...new Set(ex.ecritures.map(e => e.tiers).filter(Boolean))].map(t => `<option value="${esc(t)}">`).join("")}</datalist>
+    ${bq ? `<p class="bqrg-n">Pour la partager entre plusieurs natures : page Banque, vue « Classées », Remettre à classer, puis Répartir.</p>` : ""}
+    <div class="row"><button class="btn" value="oui" type="submit">Enregistrer</button><button class="btn ghost" value="non" type="submit">Annuler</button>
+      <button class="btn ghost" value="suppr" type="submit" style="margin-right:auto">Supprimer</button></div></form>`;
+  document.body.appendChild(d);
+  d.querySelector("form").addEventListener("submit", ev => {
+    if(ev.submitter?.value !== "oui") return;
+    S.editId = id; if(!saveEcriture()){ ev.preventDefault(); S.editId = id; }
+  });
+  d.addEventListener("close", () => { const rv = d.returnValue; d.remove(); S.editId = null; if(rv === "suppr") delEcriture(id); else renderAll(); });
+  d.showModal(); d.querySelector("#eNat").focus();
 }
 async function delEcriture(id){ if(!await confirmer("Supprimer cette écriture ?", {ok:"Supprimer", danger:true})) return; const ex = exercice(S.year); ex.ecritures = ex.ecritures.filter(e=>e.id!==id); setDirty(); renderAll(); }
 
@@ -3587,6 +3642,8 @@ function ecrituresComptables(y){
   const solde = r2(an.reduce((s,l)=>s+(l.d||0)-(l.cr||0),0));
   an.push(solde >= 0 ? {c:"108000", cr:solde} : {c:"108000", d:-solde});
   add("AN", debut, "À-nouveaux au 1er janvier", an);
+  const rgDep = regulDepots(y);
+  if(rgDep) add("OD", debut, "Dépôts de garantie détenus au 1er janvier" + (exercice(y).regulDepots.motif ? " - " + exercice(y).regulDepots.motif : ""), rgDep > 0 ? [{c:"108000", d:rgDep}, {c:"165000", cr:rgDep}] : [{c:"165000", d:-rgDep}, {c:"108000", cr:-rgDep}]);
   // Mouvements de banque saisis
   [...(exercice(y).ecritures||[])].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e => {
     const k = compteNature(e.nature), m = r2(e.montant), lib = [e.tiers, e.nature].filter(Boolean).join(" - ");
@@ -3870,6 +3927,10 @@ function controles(y){
   const attendus = [...Array(13 - debut).keys()].map(i => i + debut).filter(m => y < new Date().getFullYear() || m <= new Date().getMonth()+1);
   const manq = attendus.filter(m => !moisLoyer.has(m));
   chk("loyers-mois", "recettes", !manq.length, `Un loyer saisi pour chacun des ${attendus.length} mois.`, "warn", `Loyer${pl(manq.length)} manquant${pl(manq.length)} : ${manq.map(m=>MOIS[m-1]).join(", ").replace(/\.$/, "")}.`, "ecritures");
+  const dep = depotsAu31(y), rgD = regulDepots(y);
+  if(rgD || es.some(e => /^Dépôt de garantie/.test(e.nature))) chk("depots", "recettes", dep >= -0.004,
+    `Dépôts de garantie encore dus aux locataires au 31/12 : ${eur(dep)}${rgD ? `, dont ${eur(rgD)} détenus au 1er janvier` : ""}.${verrouille(y) ? "" : ` <button class="lien-b" onclick="regulariserDepots(${y})">${rgD ? "Modifier" : "Dépôts détenus avant ?"}</button>`}`,
+    "warn", `Plus de dépôts de garantie rendus que reçus (${eur(-dep)} d'écart) : un dépôt encaissé avant le suivi dans l'outil manque. Indiquez les dépôts détenus au 1er janvier.`);
   if(c.produits > 5000) chk("cfe", "impots", !!c.t.parNature["CFE"], "CFE saisie.", "warn", "Aucune CFE saisie alors que les recettes dépassent 5 000 € : vérifiez l'avis dans l'espace professionnel impots.gouv, puis saisissez-la comme dépense.", "ecritures");
   const aTrier = (S.data.banque?.aTrier || []).filter(o => yearOf(o.date) === y).length;
   chk("banque-tri", "tresorerie", !aTrier, "Aucune opération bancaire de l'année en attente de tri.", "warn", `${aTrier} opération${pl(aTrier)} bancaire${pl(aTrier)} de ${y} encore à trier.`, "banque");
@@ -4219,6 +4280,7 @@ function fenetreCycle(y, c){
     if(x.extra === "releve") return `<div class="row rv-rel"><label>Solde du relevé au 1/1<input inputmode="decimal" value="${ex.releve?.debut ?? ""}" onchange="majReleve(${y},'debut',this.value)"></label><label>au 31/12<input inputmode="decimal" value="${ex.releve?.fin ?? ""}" onchange="majReleve(${y},'fin',this.value)"></label>
       <button class="btn small ${r.statut === "na" ? "" : "sec"}" onclick="majRevision(${y},'releve',{statut:${r.statut === "na" ? "null" : "'na'"}})">Pas de relevé disponible</button></div>`;
     if(x.id === "acquisitions") return `<button class="btn small ${r.statut === "vu" ? "" : "sec"}" onclick="majRevision(${y},'acquisitions',{statut:${r.statut === "vu" ? "null" : "'vu'"}})">Factures vérifiées</button>`;
+    if(x.id === "depots") return `<button class="btn small" onclick="regulariserDepots(${y})">Dépôts détenus au 1er janvier…</button>`;
     if(x.id === "crd") return `<button class="btn small" onclick="S.revPoste=null;allerA('emprunt')">Rapprocher les échéances</button><button class="btn small sec" onclick="S.year=${y};regulariserCRD()">Régulariser l'écart…</button>`;
     if(x.attendu == null && x.page === "dossier") return `<button class="btn small" onclick="S.revPoste=null;allerA('dossier')">Renseigner le bail</button>`;
     return x.page ? `<button class="btn small" onclick="S.revPoste=null;allerA('${x.page}')">${x.id === "echeances" ? "Rapprocher à la main" : "Corriger"}</button>` : ""; };
