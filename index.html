@@ -659,26 +659,10 @@ tbody.glx-gen td{background:var(--surface-2);font-weight:700;border-top:2px soli
 .depot.petit{flex-direction:row;padding:14px 18px;gap:12px;text-align:left}
 .depot.compact{margin:0;padding:18px 14px} .depot.compact b{font-size:14.5px} .depot.compact span{font-size:12.5px} .depot.compact svg{width:24px;height:24px}
 .vide{padding:26px;text-align:center;color:var(--pos);font-weight:600;background:var(--pos-soft);border-radius:var(--r-lg);margin-bottom:20px}
-.op2{padding:14px 0;border-top:1px solid var(--line)}
-.op2h{display:flex;gap:12px;align-items:baseline}
-.op2h .d{color:var(--faint);font-size:13px;flex:none;width:42px}
-.op2h .t{flex:1;font-size:14px;overflow-wrap:anywhere}
-.op2h b{font-weight:600;white-space:nowrap} .op2h b.recette{color:var(--pos)}
-.postes{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0 54px}
-.poste{border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13px;padding:5px 11px;border-radius:99px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.poste:not(select)::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--faint))}
-.poste:hover{border-color:var(--accent)}
-.poste.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.poste.on::before{background:var(--accent-ink)}
-select.poste{padding:5px 8px;width:auto;max-width:150px}
-.poste.ign:not(.on){color:var(--muted)}
-.op2.classe .op2h .t{color:var(--muted)}
-.op2f{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0 54px}
-.op2f input{min-width:160px;padding:5px 9px;font-size:13.5px}
 .barresh{display:flex;flex-direction:column;gap:8px}
 .bh{display:grid;grid-template-columns:minmax(120px,220px) 1fr 90px;gap:12px;align-items:center;font-size:13.5px;cursor:pointer}
 .bh b{text-align:right;font-weight:600}
-@media (max-width:600px){ .postes,.op2f{margin-left:0} .bh{grid-template-columns:1fr 70px} .bh div{grid-column:1/-1;order:3} }
+@media (max-width:600px){ .bh{grid-template-columns:1fr 70px} .bh div{grid-column:1/-1;order:3} }
 
 /* ---------- Pièces ---------- */
 .pieces-top{display:grid;grid-template-columns:220px 1fr;gap:20px;margin-bottom:20px;align-items:stretch}
@@ -939,22 +923,66 @@ dialog#viewer::backdrop{background:rgba(10,15,25,.5)}
 #viewer iframe{width:100%;height:calc(92vh - 56px);border:0;background:#fff}
 
 /* ---------- Banque : opérations à trier ---------- */
-.op{display:grid;grid-template-columns:44px minmax(0,1fr) 120px;gap:6px 12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
-.op:first-of-type{border-top:0}
-.op .d{font-size:13px;color:var(--faint);text-align:center;line-height:1.1}
-.op .d b{display:block;font-size:17px;color:var(--text);font-weight:500}
-.op .d small{display:block;font-size:11.5px}
-.op .t{font-size:13.5px;overflow-wrap:anywhere}
-.op .t small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
-.op .m{font-weight:500;text-align:right;white-space:nowrap}
-.op .m.recette{color:var(--pos)}
-.op .f{grid-column:2 / -1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.op .f select{min-width:200px}
-.op .f input{flex:1;min-width:150px}
-.op.classe{background:var(--surface-2)}
-.op .dbl{grid-column:2 / -1;margin:0}
-@media (max-width:600px){ .op{grid-template-columns:38px minmax(0,1fr) auto} .op .f select{min-width:0;flex:1} }
-
+.bqh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.bqh h3{margin:0} .bqh p{margin:3px 0 0;font-size:13.5px;color:var(--muted)}
+.bqtools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 10px}
+.bqq{flex:1 1 240px;min-width:180px;position:relative;display:flex}
+.bqq input{width:100%;padding:8px 34px 8px 34px;font-size:14px}
+.bqq>svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint);pointer-events:none}
+.bqq button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 8px;cursor:pointer;border-radius:6px}
+.bqq button:hover{background:var(--surface-2);color:var(--text)}
+.bqtools select{width:auto;padding:7px 10px;font-size:13.5px}
+.bqrec{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:13px;color:var(--muted)}
+.bqrec>span{margin-right:2px}
+.bqrec button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 10px;font:inherit;font-size:12.5px;color:var(--text);cursor:pointer;transition:border-color .15s,background-color .15s}
+.bqrec button:hover,.bqrec button.on{border-color:var(--accent);background:var(--accent-soft)}
+.bqrec button b{color:var(--accent);font-weight:600;margin-left:5px}
+.bqres{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 8px;font-size:13.5px;color:var(--muted)}
+.bqlist{border:1px solid var(--line);border-radius:var(--r-md)}
+.bqr{display:grid;grid-template-columns:22px 46px minmax(0,1fr) 112px minmax(170px,240px) 32px;gap:6px 12px;align-items:center;padding:7px 10px 7px 12px;border-top:1px solid var(--line);min-height:48px}
+.bqr:first-child{border-top:0}
+.bqr.th{min-height:0;padding:8px 10px 8px 12px;background:var(--surface-2);font-size:12px;color:var(--muted);border-radius:var(--r-md) var(--r-md) 0 0}
+.bqr.th .bqm{font-weight:400}
+.bqr:not(.th):hover{background:var(--surface-2)}
+.bqr.sel,.bqr.sel:hover{background:var(--accent-soft)}
+.bqr input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--accent);cursor:pointer;display:block}
+.bqd{font-size:13px;color:var(--faint)}
+.bql{min-width:0;display:flex;flex-direction:column;gap:3px}
+.bql>b{font-weight:500;font-size:13.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.bqr.ok .bql>b{color:var(--muted);font-weight:400}
+.bqt{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bqt input{padding:2px 8px;font-size:12.5px;width:170px;border-radius:6px}
+.bqt .pill{font-size:11.5px;padding:1px 8px}
+.bqm{text-align:right;font-weight:600;white-space:nowrap} .bqm.in{color:var(--pos)}
+.bqn{position:relative;min-width:0}
+.bqn select{width:100%;padding:6px 8px 6px 26px;font-size:13px;border-radius:99px;text-overflow:ellipsis}
+.bqn::before{content:"";position:absolute;left:11px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--c);z-index:1;pointer-events:none}
+.bqn.nc::before{background:none;border:1.5px dashed var(--faint);width:7px;height:7px}
+.bqn.nc select{color:var(--muted);border-style:dashed}
+.bqn.on select{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background-color:color-mix(in srgb,var(--c) 10%,var(--surface));font-weight:500}
+.bqr>.alert{grid-column:3/-1;margin:0 0 4px;padding:8px 12px;font-size:13px}
+.bqr .menu3>summary{width:30px;height:30px}
+.bqvide{padding:28px 16px;text-align:center;color:var(--muted)} .bqvide b{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+.bqbar{position:sticky;bottom:14px;z-index:15;display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin-top:14px;padding:10px 12px 10px 16px;border-radius:14px;background:var(--brand-deep);color:#fff;box-shadow:0 12px 30px rgba(43,24,34,.28);animation:bqbar .22s cubic-bezier(.2,.8,.2,1)}
+.bqbar[hidden]{display:none}
+:root[data-theme="dark"] .bqbar{background:#55304A;border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+@keyframes bqbar{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.bqbar>b{font-weight:600} .bqbar>small{color:#EAD7D7;font-size:13px;margin-right:auto}
+.bqbar select{width:auto;max-width:220px;padding:6px 10px;font-size:13.5px;border-color:transparent;font-weight:500}
+.bqbar .btn.small{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.22)} .bqbar .btn.small:hover{background:rgba(255,255,255,.22);filter:none}
+.bqbar .btn.small.ok{background:#fff;color:var(--brand-deep);border-color:#fff}
+.bqbar .x{border:0;background:none;color:#EAD7D7;font-size:20px;line-height:1;padding:2px 6px;cursor:pointer;border-radius:6px} .bqbar .x:hover{background:rgba(255,255,255,.12);color:#fff}
+@media (max-width:760px){
+  .bqr{grid-template-columns:22px minmax(0,1fr) auto;gap:6px 10px;padding:10px 10px 10px 12px}
+  .bqr .bqd{display:none} .bql::before{content:attr(data-d);font-size:12px;color:var(--faint)}
+  .bqr:not(.th){align-items:start} .bqr:not(.th)>input[type=checkbox]{margin-top:22px} .bqr .bqm{padding-top:19px} .bqr .menu3{align-self:center}
+  .bqr .bqn{grid-column:2/3} .bqr .menu3{grid-column:3;justify-self:end}
+  .bqr.th{display:none} .bqr>.alert{grid-column:2/-1}
+  .bqtools select{flex:1 1 40%} .bqt input{width:100%}
+  .bqtools .seg{display:flex;width:100%} .bqtools .seg button{flex:1;padding:6px 4px;font-size:13px;white-space:nowrap}
+  .bqrec{flex-wrap:nowrap;overflow-x:auto;margin:0 -2px 12px;padding:0 2px 2px;scrollbar-width:none} .bqrec::-webkit-scrollbar{display:none} .bqrec>span{display:none} .bqrec button{flex:none}
+  .bqbar{bottom:10px;padding:10px 12px} .bqbar select{max-width:none;flex:1 1 100%}
+}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;box-shadow:0 8px 24px rgba(10,15,25,.18);max-width:90vw}
 .fiche .card h3{padding-bottom:8px;border-bottom:1px solid var(--line)}
 
@@ -1178,6 +1206,8 @@ const DUREE_DEFICIT = 10;
 
 /* ============ État ============ */
 const S = {data:null, dirty:false, dir:null, fileName:null, year:null, tab:"accueil", editId:null, editImmo:null};
+/* Tri des opérations bancaires : vue, filtres, tri, sélection (non enregistrés dans le dossier) */
+S.bqVue = "atraiter"; S.bq = {q:"", sens:"", mois:"", tri:"date", sel:new Set(), garde:new Set(), dernier:null};
 
 /* ============ Utilitaires ============ */
 const $ = s => document.querySelector(s);
@@ -1493,7 +1523,7 @@ const idb = {
 };
 function chargerDonnees(obj, nom){
   if(!obj || obj.format !== "outil-lmnp") throw new Error("Ce fichier n'est pas un dossier de l'outil LMNP.");
-  S.data = normalize(obj); S.fileName = nom; S.autoMsg = DEPOT ? "Lecture seule · dépôt de pièces" : ""; S.sauvegardeSession = false; S.versionLue = obj.derniereModification || null; S.conflit = false;
+  S.data = normalize(obj); S.fileName = nom; S.bq.sel.clear(); S.bq.garde.clear(); S.autoMsg = DEPOT ? "Lecture seule · dépôt de pièces" : ""; S.sauvegardeSession = false; S.versionLue = obj.derniereModification || null; S.conflit = false;
   rattacherEcheanciers(); // à l'ouverture : rattaché en mémoire, sans marquer le dossier comme modifié
   const ys = Object.keys(S.data.exercices).map(Number).sort((a,b)=>a-b);
   // L'exercice affiché à l'ouverture : le plus récent encore ouvert, sinon le plus récent
@@ -2089,8 +2119,10 @@ function etapesAnnee(y){
   const man = id => coche[id] ? "fait" : "afaire";
   const aTrier = (S.data.banque?.aTrier || []).filter(o => yearOf(o.date) === y).length;
   if(premiere) t("siret", "Déclarer le début de l'activité", "Sur formalites.entreprises.gouv.fr, dans les 15 jours. Vous recevez un SIRET.", d.siret ? "fait" : "afaire", "", "allerA('dossier')", "Saisir le SIRET");
-  t("banque", "Importer le relevé de banque", "Téléchargez-le sur le site de votre banque, puis importez-le ici.", !es.length ? "afaire" : "fait", es.length ? `${es.length} opérations` : "", "allerA('banque')", "Importer");
-  t("trier", "Dire ce qu'est chaque opération", "Loyer, charge, mensualité du prêt… un clic par ligne.", aTrier ? "afaire" : es.length ? "fait" : "plustard", aTrier ? `${aTrier} à trier` : "", "allerA('banque')", "Trier");
+  // Relevé importé dès qu'il a apporté des opérations de l'année : à trier, déjà passées en écritures ou mises hors location
+  const duReleve = es.filter(e => e.banque).length + aTrier + (S.data.banque?.ignorees || []).filter(o => yearOf(o.date) === y).length, importe = duReleve > 0 || es.length > 0;
+  t("banque", "Importer le relevé de banque", "Téléchargez-le sur le site de votre banque, puis importez-le ici.", importe ? "fait" : "afaire", duReleve ? `${duReleve} opérations importées` : es.length ? `${es.length} opérations` : "", "allerA('banque')", "Importer");
+  t("trier", "Dire ce qu'est chaque opération", "Loyer, charge, hors location… en masse, grâce aux filtres et aux opérations qui reviennent.", aTrier ? "afaire" : importe ? "fait" : "plustard", aTrier ? `${aTrier} à traiter` : "", "allerA('banque')", "Traiter");
   const nm = moisLoues(y), ml = new Set(es.filter(e => e.nature === "Loyer").map(e => monthOf(e.date))).size;
   t("loyers", "Un loyer pour chaque mois", "Un mois vide, c'est souvent une opération pas encore triée.", nm === 0 ? "plustard" : ml >= nm ? "fait" : "afaire", nm ? `${Math.min(ml, nm)} mois sur ${nm}` : "", "allerA('ecritures')", "Voir");
   if(S.data.emprunts.length){
@@ -5161,8 +5193,10 @@ function validerImport(){
   toast(`${nouvelles.length} opération${pl(nouvelles.length)} ajoutée${pl(nouvelles.length)} à trier${auto?`, dont ${auto} classée${pl(auto)} par vos règles`:""}. ${ops.length-nouvelles.length} déjà connue${pl(ops.length-nouvelles.length)}${rejets?`, ${rejets} ligne${pl(rejets)} illisible${pl(rejets)} ignorée${pl(rejets)}`:""}.`);
 }
 function trouverOp(id){ return S.data.banque.aTrier.find(o => o.id === id); }
+function poserNature(o, v){ o.nature = v; delete o.regle; if(v === IGNORER) delete o.doublon; else if(!o.pasDoublon) chercherDoublon(o); }
 function majOp(id, k, v){
-  const o = trouverOp(id); o[k] = v; if(k === "nature"){ delete o.regle; if(v === IGNORER) delete o.doublon; else if(!o.pasDoublon) chercherDoublon(o); }
+  const o = trouverOp(id); if(!o) return;
+  if(k === "nature"){ poserNature(o, v); S.bq.garde.add(id); } else o[k] = v; // une ligne classée reste à l'écran jusqu'au prochain changement de filtre
   setDirty(); if(k === "nature") renderAll();
 }
 async function memoriserRegle(id){
@@ -5171,12 +5205,17 @@ async function memoriserRegle(id){
   const mc = await demander("Mot-clé à reconnaître dans le libellé bancaire. Les prochaines opérations qui le contiennent seront classées pareil :", motCleSuggere(o.libelle) || o.libelle.slice(0,20));
   if(!mc || !mc.trim()) return;
   if(!norm(o.libelle).includes(norm(mc))) return avertir("Ce mot-clé n'apparaît pas dans le libellé de cette opération.");
+  creerRegle(mc, [o]);
+}
+/* Règle « si le libellé contient… » : mémorisée, appliquée aux opérations modèles, puis à celles qui restent à classer */
+function creerRegle(mc, modeles){
+  const B = S.data.banque, o = modeles[0]; mc = mc.trim();
   B.regles = B.regles.filter(r => !(norm(r.motCle) === norm(mc) && r.sens === sensOp(o)));
-  B.regles.push({id:uid(), motCle:mc.trim(), sens:sensOp(o), nature:o.nature, tiers:o.nature === IGNORER ? "" : (o.tiers||"")});
-  o.regle = mc.trim();
+  B.regles.push({id:uid(), motCle:mc, sens:sensOp(o), nature:o.nature, tiers:o.nature === IGNORER ? "" : (o.tiers||"")});
+  modeles.forEach(x => { if(norm(x.libelle).includes(norm(mc))) x.regle = mc; });
   let n = 0;
-  B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; if(x.nature === IGNORER) delete x.doublon; } } });
-  setDirty(); renderAll(); toast(`Règle « ${mc.trim()} » mémorisée${n?`, ${n} autre${pl(n)} opération${pl(n)} classée${pl(n)}`:""}.`);
+  B.aTrier.forEach(x => { if(!x.nature && !x.parent){ appliquerRegles(x); if(x.nature){ n++; S.bq.garde.add(x.id); if(x.nature === IGNORER) delete x.doublon; else if(!x.pasDoublon) chercherDoublon(x); } } });
+  setDirty(); renderAll(); toast(`Règle « ${mc} » mémorisée${n?`, ${n} autre${pl(n)} opération${pl(n)} classée${pl(n)}`:""}.`);
 }
 async function scinderOp(id){
   const o = trouverOp(id), tot = Math.abs(o.montant), fr = x => x.toLocaleString("fr-FR", {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -5201,8 +5240,8 @@ function confirmerDoublon(id, oui){
   else { delete o.doublon; o.pasDoublon = true; }
   setDirty(); renderAll();
 }
-function validerTri(){
-  const B = S.data.banque, prets = B.aTrier.filter(o => o.nature);
+function validerTri(ids){
+  const B = S.data.banque, prets = B.aTrier.filter(o => o.nature && (!ids || ids.has(o.id)));
   if(!prets.length) return avertir("Aucune opération classée pour l'instant.");
   const derniere = Math.max(...Object.keys(S.data.exercices).map(Number));
   let n = 0, ign = 0; const bloques = new Set(), faites = new Set();
@@ -5217,6 +5256,7 @@ function validerTri(){
     n++; faites.add(o);
   }
   B.aTrier = B.aTrier.filter(o => !faites.has(o));
+  faites.forEach(o => S.bq.sel.delete(o.id));
   const lies = rapprocherFactures();
   setDirty(); renderAll();
   toast(`${n} écriture${pl(n)} créée${pl(n)}, ${ign} opération${pl(ign)} ignorée${pl(ign)}${lies?`, ${lies} facture${pl(lies)} reçue${pl(lies)} rattachée${pl(lies)}`:""}.`);
@@ -5260,7 +5300,7 @@ async function deposerCSV(ev){
   const f = ev.dataTransfer.files[0]; if(!f) return;
   try{ S.imp = analyserCSV(await lireTexte(f), f.name); renderAll(); haut(); } catch(e){ avertir(e.message); }
 }
-const zoneDepot = (titre, sous, action, drop) => `<div class="depot noprint" role="button" tabindex="0" onclick="${action}" ondragover="event.preventDefault();this.classList.add('survol')" ondragleave="this.classList.remove('survol')" ondrop="${drop}">
+const zoneDepot = (titre, sous, action, drop, cls = "") => `<div class="depot ${cls} noprint" role="button" tabindex="0" onclick="${action}" ondragover="event.preventDefault();this.classList.add('survol')" ondragleave="this.classList.remove('survol')" ondrop="${drop}">
   <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v4h14v-4"/></svg>
   <b>${titre}</b><span>${sous}</span></div>`;
 /* Postes proposés en un clic : les plus utilisés d'abord */
@@ -5272,44 +5312,148 @@ function postesFrequents(credit){
   const nats = Object.keys(NATURES).filter(n => entreeNature(n) === credit);
   return [...new Set([...nats.filter(n=>freq[n]).sort((a,b)=>freq[b]-freq[a]), ...base])].slice(0, credit ? 3 : 7);
 }
+/* ---- Tri des opérations : filtres, tris, sélection et traitement en masse ---- */
+const libNatOp = n => n === IGNORER ? "Hors location" : n ? libNature(n) : "";
+const couleurNat = n => n === IGNORER ? "var(--faint)" : COUL_GROUPE[NATURES[n]?.g || "charge"];
+/* Deux mots utiles du libellé : ce qui reconnaît les opérations qui reviennent (CARREFOUR ANGERS, CREDIT LITTORAL…) */
+const MOTS_FAMILLE = new Set(["facture","factures","clients","client","particuliers","mensualite","ech","echeance","ref","contrat","motif","appel","fonds","ligne","com","fr","sas","sa","sarl"]);
+const famille = o => motsUtiles(o.libelle).filter(w => w.length > 1 && !MOTS_FAMILLE.has(w)).slice(0,2).join(" ");
+const MOIS_COURT = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+function opCorrespond(o, F){
+  if(F.sens && sensOp(o) !== F.sens) return false;
+  if(F.mois && o.date.slice(0,7) !== F.mois) return false;
+  const q = norm(F.q); if(!q) return true;
+  const mt = lireMontant(F.q.replace(/^[+−-]/, ""));
+  if(mt != null && Math.abs(Math.abs(o.montant) - mt) < 0.005) return true;
+  const h = norm([o.libelle, o.tiers, libNatOp(o.nature)].join(" "));
+  return q.split(" ").every(w => h.includes(w));
+}
+/* Opérations affichées : vue (à classer, classées, toutes), filtres, puis tri */
+function opsVisibles(){
+  const F = S.bq, v = S.bqVue;
+  const L = S.data.banque.aTrier.filter(o => (v === "toutes" || (v === "classees" ? !!o.nature : !o.nature || F.garde.has(o.id))) && opCorrespond(o, F));
+  const parDate = (a,b) => a.date.localeCompare(b.date);
+  const tris = {date:parDate, recent:(a,b) => parDate(b,a), montant:(a,b) => Math.abs(b.montant) - Math.abs(a.montant) || parDate(a,b),
+    libelle:(a,b) => famille(a).localeCompare(famille(b)) || norm(a.libelle).localeCompare(norm(b.libelle)) || parDate(a,b)};
+  return L.sort(tris[F.tri] || parDate);
+}
+/* Changement de vue ou de filtre : la sélection et les lignes gardées à l'écran repartent de zéro */
+function filtreBq(k, v){
+  if(k === "vue") S.bqVue = v; else S.bq[k] = v;
+  if(k !== "tri"){ S.bq.sel.clear(); S.bq.garde.clear(); }
+  renderAll();
+  if(k === "q"){ const i = $("#bqQ"); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+let bqMinuterie;
+function chercherOp(v){ clearTimeout(bqMinuterie); bqMinuterie = setTimeout(() => filtreBq("q", v), 180); }
+function semblables(id){ const o = trouverOp(id); if(!o) return; S.bqVue = o.nature ? "toutes" : "atraiter"; filtreBq("q", famille(o) || o.libelle.slice(0,20)); }
+/* Sélection : case par case, Maj+clic pour une plage, ou tout ce qui est affiché */
+function selOp(ev, id){
+  const F = S.bq, on = ev.target.checked, ids = opsVisibles().map(o => o.id);
+  if(ev.shiftKey && F.dernier && ids.includes(F.dernier) && F.dernier !== id){
+    const a = ids.indexOf(F.dernier), b = ids.indexOf(id);
+    ids.slice(Math.min(a,b), Math.max(a,b) + 1).forEach(x => on ? F.sel.add(x) : F.sel.delete(x));
+  } else if(on) F.sel.add(id); else F.sel.delete(id);
+  F.dernier = id; majSelection();
+}
+function selTout(on){ opsVisibles().forEach(o => on ? S.bq.sel.add(o.id) : S.bq.sel.delete(o.id)); majSelection(); }
+function majSelection(){
+  const F = S.bq, vis = opsVisibles();
+  document.querySelectorAll(".bqr[data-id]").forEach(r => { const s = F.sel.has(r.dataset.id); r.classList.toggle("sel", s); const c = r.querySelector("input[type=checkbox]"); if(c) c.checked = s; });
+  const tout = $("#bqTout"); if(tout){ const n = vis.filter(o => F.sel.has(o.id)).length; tout.checked = n > 0 && n === vis.length; tout.indeterminate = n > 0 && n < vis.length; }
+  const tb = $("#bqToutBtn"); if(tb) tb.style.display = vis.every(o => F.sel.has(o.id)) ? "none" : "";
+  const b = $("#bqBarre"); if(b) b.outerHTML = barreSelection();
+}
+const opsSel = () => S.data.banque.aTrier.filter(o => S.bq.sel.has(o.id));
+/* Options de nature : les plus utilisées d'abord, puis les autres, puis « Hors location » */
+function optionsTri(credit, val, vide){
+  const freq = postesFrequents(credit), autres = Object.keys(NATURES).filter(n => entreeNature(n) === credit && !freq.includes(n));
+  return `${vide}<optgroup label="Les plus utilisées">${freq.map(n => optNature(n, val)).join("")}</optgroup><optgroup label="Autres">${autres.map(n => optNature(n, val)).join("")}</optgroup>`;
+}
+function barreSelection(){
+  const L = opsSel(), n = L.length;
+  if(!n) return `<div id="bqBarre" class="bqbar noprint" hidden></div>`;
+  const tot = r2(L.reduce((t,o) => t + o.montant, 0)), cr = L.some(o => o.montant > 0), db = L.some(o => o.montant < 0), cl = L.filter(o => o.nature);
+  const memeNat = cl.length === n && new Set(L.map(o => o.nature + sensOp(o))).size === 1;
+  const opts = cr && db
+    ? `<option value="">Classer en…</option><optgroup label="Pour les entrées d'argent">${Object.keys(NATURES).filter(entreeNature).map(x => optNature(x)).join("")}</optgroup><optgroup label="Pour les sorties d'argent">${Object.keys(NATURES).filter(x => !entreeNature(x)).map(x => optNature(x)).join("")}</optgroup>`
+    : optionsTri(cr, "", `<option value="">Classer en…</option>`);
+  return `<div id="bqBarre" class="bqbar noprint" role="region" aria-label="Opérations sélectionnées"><b>${n} sélectionnée${pl(n)}</b><small>${tot > 0 ? "+" : tot < 0 ? "−" : ""}${eur(Math.abs(tot))}</small>
+    <select aria-label="Classer la sélection" onchange="classerSel(this.value)">${opts}</select>
+    <button class="btn small" onclick="classerSel('${IGNORER}')">Hors location</button>
+    ${memeNat ? `<button class="btn small" title="Classer automatiquement les prochaines opérations semblables" onclick="regleSel()">↻ Toujours ainsi</button>` : ""}
+    ${cl.length ? `<button class="btn small" onclick="classerSel('')">Remettre à classer</button><button class="btn small ok" title="Créer les écritures des opérations classées de la sélection" onclick="validerTri(new Set(opsSel().map(o => o.id)))">Valider ${cl.length}</button>` : ""}
+    <button class="x" aria-label="Tout désélectionner" title="Tout désélectionner" onclick="S.bq.sel.clear();majSelection()">×</button></div>`;
+}
+function classerSel(v){
+  const L = opsSel(); let k = 0, autreSens = 0;
+  L.forEach(o => {
+    if(v && v !== IGNORER && entreeNature(v) !== (o.montant > 0)){ autreSens++; return; }
+    poserNature(o, v); S.bq.garde.add(o.id); S.bq.sel.delete(o.id); k++;
+  });
+  setDirty(); renderAll();
+  toast(`${k} opération${pl(k)} ${v ? `classée${pl(k)} en « ${libNatOp(v)} »` : `remise${pl(k)} à classer`}${autreSens ? `. ${autreSens} restent sélectionnée${pl(autreSens)} : ${v && entreeNature(v) ? "ce sont des sorties d'argent" : "ce sont des entrées d'argent"}` : ""}.`);
+}
+async function regleSel(){
+  const L = opsSel(); if(!L.length) return;
+  const mc = await demander(`Mot-clé à reconnaître dans le libellé bancaire. Les prochaines opérations qui le contiennent seront classées en « ${libNatOp(L[0].nature)} » :`, (S.bq.q.trim() || famille(L[0])).toUpperCase());
+  if(!mc || !mc.trim()) return;
+  if(!L.some(o => norm(o.libelle).includes(norm(mc)))) return avertir("Ce mot-clé n'apparaît dans le libellé d'aucune opération sélectionnée.");
+  S.bq.sel.clear(); creerRegle(mc, L);
+}
 function vueBanque(){
   if(S.imp) return vueImport();
-  const B = S.data.banque, list = [...B.aTrier].sort((a,b)=>a.date.localeCompare(b.date));
-  const classes = list.filter(o => o.nature).length;
-  const pc = {true:postesFrequents(true), false:postesFrequents(false)};
+  const B = S.data.banque, F = S.bq, tous = B.aTrier, classes = tous.filter(o => o.nature).length, aClasser = tous.length - classes;
+  const vis = opsVisibles(), ids = new Set(vis.map(o => o.id));
+  F.sel.forEach(id => { if(!ids.has(id)) F.sel.delete(id); });
   const ligneOp = o => {
-    const credit = o.montant > 0, e = o.doublon && findEcr(o.doublon), autres = Object.keys(NATURES).filter(n => entreeNature(n) === credit && !pc[credit].includes(n));
-    return `<div class="op2 ${o.nature?"classe":""}">
-      <div class="op2h"><span class="d">${fmtDate(o.date).slice(0,5)}</span><span class="t">${esc(o.libelle)}</span><b class="${credit?"recette":""}">${credit?"+":"−"}${eur(Math.abs(o.montant))}</b></div>
-      ${e?`<div class="alert warn" style="align-items:center;flex-wrap:wrap;margin:8px 0 0">Déjà saisie le ${fmtDate(e.date)} (${esc(e.tiers||e.nature)}) ?
-        <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small sec" onclick="confirmerDoublon('${o.id}',true)">Oui</button><button class="btn small ghost" onclick="confirmerDoublon('${o.id}',false)">Non</button></span></div>`:""}
-      <div class="postes noprint">
-        ${pc[credit].map(n=>`<button class="poste ${o.nature===n?"on":""}" style="--c:${COUL_GROUPE[NATURES[n].g]}" onclick="majOp('${o.id}','nature','${n}')">${esc(n)}</button>`).join("")}
-        <select class="poste ${autres.includes(o.nature)?"on":""}" aria-label="Autre poste" onchange="majOp('${o.id}','nature',this.value)"><option value="">Autre…</option>${autres.map(n=>optNature(n, o.nature)).join("")}</select>
-        <button class="poste ign ${o.nature===IGNORER?"on":""}" onclick="majOp('${o.id}','nature','${IGNORER}')">Hors location</button>
-      </div>
-      ${o.nature && o.nature!==IGNORER ? `<div class="op2f noprint"><input aria-label="Tiers" value="${esc(o.tiers)}" placeholder="Tiers" onchange="majOp('${o.id}','tiers',this.value.trim())">
-        <button class="btn small ghost" title="Classer automatiquement les prochaines opérations semblables" onclick="memoriserRegle('${o.id}')">↻ Toujours ainsi</button>
-        <button class="btn small ghost" title="Répartir le montant sur plusieurs postes" onclick="scinderOp('${o.id}')">✂ Répartir</button>
-        ${o.regle?`<span class="pill">règle « ${esc(o.regle)} »</span>`:""}</div>` : ""}
+    const credit = o.montant > 0, e = o.doublon && findEcr(o.doublon), sel = F.sel.has(o.id), d = fmtDate(o.date).slice(0,5);
+    return `<div class="bqr ${sel ? "sel" : ""} ${o.nature ? "ok" : ""}" data-id="${o.id}">
+      <input type="checkbox" ${sel ? "checked" : ""} aria-label="Sélectionner" onclick="selOp(event,'${o.id}')">
+      <span class="bqd">${d}</span>
+      <span class="bql" data-d="${d}"><b title="${esc(o.libelle)}">${esc(o.libelle)}</b>${o.nature && o.nature !== IGNORER || o.regle ? `<span class="bqt">${o.nature && o.nature !== IGNORER ? `<input aria-label="Tiers" value="${esc(o.tiers)}" placeholder="Tiers" onchange="majOp('${o.id}','tiers',this.value.trim())">` : ""}${o.regle ? `<span class="pill" title="Classée par la règle « ${esc(o.regle)} »">↻ ${esc(o.regle)}</span>` : ""}</span>` : ""}</span>
+      <b class="bqm ${credit ? "in" : ""}">${credit ? "+" : "−"}${eur(Math.abs(o.montant))}</b>
+      <span class="bqn ${o.nature ? "on" : "nc"}" style="--c:${couleurNat(o.nature)}"><select aria-label="Nature de l'opération" onchange="majOp('${o.id}','nature',this.value)">
+        ${optionsTri(credit, o.nature, `<option value="">À classer…</option>`)}<option value="${IGNORER}" ${o.nature === IGNORER ? "selected" : ""}>Hors location</option></select></span>
+      ${menu3([[`Voir les semblables`, `semblables('${o.id}')`], o.nature && [`↻ Toujours ainsi…`, `memoriserRegle('${o.id}')`], o.nature !== IGNORER && [`✂ Répartir sur plusieurs natures…`, `scinderOp('${o.id}')`], o.nature && [`Remettre à classer`, `majOp('${o.id}','nature','')`]], "Actions de l'opération")}
+      ${e ? `<div class="alert warn" style="align-items:center;flex-wrap:wrap">Déjà saisie le ${fmtDate(e.date)} (${esc(e.tiers||e.nature)}) ?
+        <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small sec" onclick="confirmerDoublon('${o.id}',true)">Oui, c'est elle</button><button class="btn small ghost" onclick="confirmerDoublon('${o.id}',false)">Non</button></span></div>` : ""}
     </div>`; };
-  // Ce qui a été imputé cette année, par poste
+  // Opérations qui reviennent, parmi celles à classer : un clic les affiche toutes, prêtes à être classées ensemble
+  const fam = {}; tous.forEach(o => { if(!o.nature){ const k = famille(o); if(k) fam[k] = (fam[k]||0) + 1; } });
+  const rec = Object.entries(fam).filter(([,n]) => n >= 3).sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10);
+  const mois = [...new Set(tous.map(o => o.date.slice(0,7)))].sort();
+  const nSel = vis.filter(o => F.sel.has(o.id)).length, filtre = F.q || F.sens || F.mois;
+  const vide = !vis.length ? `<div class="bqvide">${filtre ? `<b>Aucune opération ne correspond.</b><button class="btn small sec" style="margin-top:8px" onclick="S.bq.sens='';S.bq.mois='';filtreBq('q','')">Effacer les filtres</button>`
+      : S.bqVue === "atraiter" ? `<b>Tout est classé ✓</b>${classes ? `Il reste à valider ${classes} opération${pl(classes)} pour créer les écritures.` : ""}` : `<b>Aucune opération classée pour l'instant.</b>`}</div>` : "";
   const y = S.year, t = totauxEcritures(y), postes = Object.entries(t.parNature).sort((a,b)=>b[1]-a[1]), maxP = Math.max(1, ...postes.map(p=>p[1]));
-  const libNat = n => n === IGNORER ? "Hors location" : libNature(n);
   return `<div class="pagehead"><h1>Banque</h1></div>
-  ${zoneDepot("Déposer le relevé de l'année", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer", "importerCSV()", "deposerCSV(event)")}
-  ${list.length ? `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0">À imputer · ${classes}/${list.length}</h3>
-      <button class="btn" onclick="validerTri()" ${classes?"":"disabled"}>Valider ${classes} ligne${classes>1?"s":""}</button></div>
-      ${jauge([[classes,"var(--pos)"]], list.length, 8)}
-      <div style="margin-top:14px">${list.map(ligneOp).join("")}</div></div>`
-    : `<div class="blx-0">✓ Tout est imputé</div>`}
+  ${tous.length ? `<div class="card">
+    <div class="bqh"><div><h3>Opérations du relevé</h3><p>${aClasser ? `${aClasser} à classer · ` : ""}${classes} classée${pl(classes)}, à valider pour créer les écritures</p></div>
+      <div class="row" style="gap:8px"><button class="btn sec small" onclick="importerCSV()">Importer un relevé</button><button class="btn" onclick="validerTri()" ${classes ? "" : "disabled"}>${classes ? `Valider ${classes} classée${pl(classes)}` : "Valider"}</button></div></div>
+    ${jauge([[classes,"var(--pos)"]], tous.length, 8)}
+    <div class="bqtools">
+      ${segments("bqVue", [["atraiter", `À classer · ${aClasser}`], ["classees", `Classées · ${classes}`], ["toutes", `Toutes · ${tous.length}`]], S.bqVue).replace(/S\['bqVue'\]='(\w+)';renderAll\(\)/g, "filtreBq('vue','$1')")}
+      <div class="bqq"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+        <input id="bqQ" type="search" value="${esc(F.q)}" placeholder="Chercher : libellé, tiers, montant…" aria-label="Chercher une opération" oninput="chercherOp(this.value)">${F.q ? `<button aria-label="Effacer la recherche" onclick="filtreBq('q','')">×</button>` : ""}</div>
+      <select aria-label="Sens" onchange="filtreBq('sens',this.value)"><option value="">Entrées et sorties</option><option value="credit" ${F.sens==="credit"?"selected":""}>Entrées d'argent</option><option value="debit" ${F.sens==="debit"?"selected":""}>Sorties d'argent</option></select>
+      <select aria-label="Mois" onchange="filtreBq('mois',this.value)"><option value="">Tous les mois</option>${mois.map(m => `<option value="${m}" ${F.mois===m?"selected":""}>${MOIS_COURT[+m.slice(5)-1]} ${m.slice(0,4)}</option>`).join("")}</select>
+      <select aria-label="Trier" onchange="filtreBq('tri',this.value)">${[["date","Date, du plus ancien"],["recent","Date, du plus récent"],["montant","Montant, du plus gros"],["libelle","Libellé, semblables ensemble"]].map(([k,l]) => `<option value="${k}" ${F.tri===k?"selected":""}>${l}</option>`).join("")}</select>
+    </div>
+    ${rec.length && S.bqVue !== "classees" ? `<div class="bqrec"><span>Reviennent souvent :</span>${rec.map(([k,n]) => `<button class="${norm(F.q) === k ? "on" : ""}" onclick="S.bqVue='atraiter';filtreBq('q',${jsq(k)})">${esc(k.toUpperCase())}<b>${n}</b></button>`).join("")}</div>` : ""}
+    ${filtre && vis.length ? `<div class="bqres">${vis.length} opération${pl(vis.length)} affichée${pl(vis.length)} · ${(r => (r > 0 ? "+" : r < 0 ? "−" : "") + eur(Math.abs(r)))(r2(vis.reduce((s,o) => s + o.montant, 0)))}${vis.length > 1 && nSel < vis.length ? `<button class="btn small sec" id="bqToutBtn" onclick="selTout(true)">Tout sélectionner</button>` : ""}</div>` : ""}
+    <div class="bqlist">${vis.length ? `<div class="bqr th"><input type="checkbox" id="bqTout" aria-label="Tout sélectionner" ${nSel && nSel === vis.length ? "checked" : ""} onclick="selTout(this.checked)"><span>Date</span><span>Libellé du relevé</span><span class="bqm">Montant</span><span>Nature</span><span></span></div>` : ""}${vis.map(ligneOp).join("") || vide}</div>
+    ${barreSelection()}
+  </div>
+  ${zoneDepot("Déposer un autre relevé", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer · les opérations déjà connues sont écartées", "importerCSV()", "deposerCSV(event)", "petit")}`
+    : `${zoneDepot("Déposer le relevé de l'année", "Fichier CSV téléchargé sur le site de la banque · glisser ici ou cliquer", "importerCSV()", "deposerCSV(event)")}<div class="vide">✓ Tout est imputé</div>`}
   ${postes.length ? `<div class="card"><h3>Postes ${y}</h3><div class="barresh">${postes.map(([n,v])=>`<div class="bh" role="button" title="Voir ces écritures" onclick="S.vueEcr='journal';S.fEcr=[{t:'nature',v:${jsq(n)}}];S.lignesEcr='';allerA('ecritures')"><span>${libNature(n)}</span><div>${jauge([[v, COUL_GROUPE[NATURES[n]?.g||"charge"]]], maxP, 10)}</div><b>${eur0(v)}</b></div>`).join("")}</div></div>` : ""}
   <div class="card"><details><summary>Règles automatiques (${B.regles.length})</summary>
-  ${B.regles.length ? `<div class="tablewrap" style="margin-top:10px"><table><tr><th>Si le libellé contient</th><th>Sens</th><th>Poste</th><th>Tiers</th><th></th></tr>
-    ${B.regles.map(r=>`<tr><td><input value="${esc(r.motCle)}" style="width:100%;min-width:120px" onchange="majRegle('${r.id}','motCle',this.value)"></td><td>${r.sens==="credit"?"Crédit":"Débit"}</td><td>${libNat(r.nature)}</td>
+  ${B.regles.length ? `<div class="tablewrap" style="margin-top:10px"><table><tr><th>Si le libellé contient</th><th>Sens</th><th>Nature</th><th>Tiers</th><th></th></tr>
+    ${B.regles.map(r=>`<tr><td><input value="${esc(r.motCle)}" style="width:100%;min-width:120px" onchange="majRegle('${r.id}','motCle',this.value)"></td><td>${r.sens==="credit"?"Entrée":"Sortie"}</td><td>${libNatOp(r.nature)}</td>
       <td>${r.nature===IGNORER?"":`<input value="${esc(r.tiers)}" style="width:100%;min-width:110px" onchange="majRegle('${r.id}','tiers',this.value)">`}</td>
       <td class="n"><button class="btn ghost small" aria-label="Supprimer la règle" onclick="supprimerRegle('${r.id}')">${I_DEL}</button></td></tr>`).join("")}</table></div>`
-    : `<p class="sub" style="margin:10px 0 0">« Toujours ainsi » sur une ligne crée une règle.</p>`}</details></div>
+    : `<p class="sub" style="margin:10px 0 0">« Toujours ainsi » sur une opération, ou sur une sélection, crée une règle.</p>`}</details></div>
   ${B.ignorees.length ? `<div class="card"><details><summary>${B.ignorees.length} opération${pl(B.ignorees.length)} hors location</summary><div class="tablewrap" style="margin-top:10px"><table>
     ${B.ignorees.map((o,i)=>[o,i]).sort((a,b)=>b[0].date.localeCompare(a[0].date)).slice(0,200).map(([o,i])=>`<tr><td>${fmtDate(o.date)}</td><td>${esc(o.libelle)}</td><td class="n">${eur(o.montant)}</td><td class="n"><button class="btn small ghost" onclick="remettreATrier(${i})">Remettre à trier</button></td></tr>`).join("")}
   </table></div></details></div>` : ""}`;
